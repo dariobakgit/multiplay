@@ -53,7 +53,7 @@ export default function HomeClient({
     audio.init();
     setMuted(audio.isMuted());
     audio.playMusic("menu");
-    return () => audio.stopMusic();
+    return () => audio.stopAll();
   }, []);
 
   useEffect(() => {

@@ -27,7 +27,7 @@ export default function ExamClient({
   useEffect(() => {
     audio.init();
     audio.playMusic("menu");
-    return () => audio.stopMusic();
+    return () => audio.stopAll();
   }, []);
 
   function start() {

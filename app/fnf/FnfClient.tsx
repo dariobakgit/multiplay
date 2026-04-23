@@ -43,7 +43,7 @@ export default function FnfClient({
 
   useEffect(() => {
     audio.init();
-    return () => audio.stopMusic();
+    return () => audio.stopAll();
   }, []);
 
   useEffect(() => {

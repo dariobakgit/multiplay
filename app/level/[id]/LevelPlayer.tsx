@@ -68,7 +68,7 @@ export default function LevelPlayer({
   useEffect(() => {
     audio.init();
     audio.playMusic("menu");
-    return () => audio.stopMusic();
+    return () => audio.stopAll();
   }, []);
 
   useEffect(() => {

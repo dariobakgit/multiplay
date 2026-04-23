@@ -78,8 +78,11 @@ class AudioManager {
   stopMusic() {
     this.pendingTrack = null;
     this.currentTrack = null;
-    for (const k of ["menu", "game"] as Track[]) {
-      const el = this.elements[k];
+    // Pause every looping track (music) dynamically — no hardcoded list so
+    // new tracks don't get left playing.
+    for (const key of Object.keys(FILES) as Key[]) {
+      if (!FILES[key].loop) continue;
+      const el = this.elements[key];
       if (el) {
         el.pause();
         el.currentTime = 0;
@@ -87,10 +90,29 @@ class AudioManager {
     }
   }
 
+  stopSfx() {
+    for (const key of Object.keys(FILES) as Key[]) {
+      if (FILES[key].loop) continue;
+      const el = this.elements[key];
+      if (el && !el.paused) {
+        el.pause();
+        el.currentTime = 0;
+      }
+    }
+  }
+
+  /** Stops music AND any in-flight SFX. Use at screen unmounts. */
+  stopAll() {
+    this.stopMusic();
+    this.stopSfx();
+  }
+
   playSfx(sfx: Sfx) {
     if (this.muted || !this.unlocked) return;
     const el = this.elements[sfx];
     if (!el) return;
+    // Ensure no other SFX is still playing before starting this one.
+    this.stopSfx();
     el.currentTime = 0;
     el.play().catch(() => {
       // Ignore playback errors.
