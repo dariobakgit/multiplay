@@ -46,37 +46,45 @@ export function makeOptions(answer: number, count: number): number[] {
 }
 
 export function buildQuestions(level: Level): Question[] {
-  // Build the full pool of unique (a, b) pairs valid for this level.
+  // Build the unique pool of (a, b) pairs valid for this level.
   const pool: Array<[number, number]> = [];
+  const seen = new Set<string>();
+  const addPair = (a: number, b: number) => {
+    const key = `${a},${b}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      pool.push([a, b]);
+    }
+  };
+
   if (level.kind === "learn") {
     const t = level.tables[0];
     const factors = level.factors ?? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    for (const b of factors) pool.push([t, b]);
+    // Include both (t, b) and its commutative twin (b, t). Same result,
+    // different look — almost doubles the pool for learn levels
+    // (5 → ~9 pairs) and teaches that a × b = b × a.
+    for (const b of factors) {
+      addPair(t, b);
+      addPair(b, t);
+    }
   } else {
     for (const t of level.tables) {
-      for (let b = 1; b <= 10; b++) pool.push([t, b]);
+      for (let b = 1; b <= 10; b++) addPair(t, b);
     }
   }
 
-  // Pick questions by exhausting a shuffled pool before reusing any pair.
-  // Guarantees no repeats while pool size > picked count, and minimizes
-  // repeats otherwise (each pair appears ⌈questions/pool⌉ times max).
+  // Greedy pick with a "recent window" so no pair repeats within the
+  // last N picks unless the pool is smaller than the window.
+  const recentWindow = Math.max(1, Math.min(pool.length - 1, 6));
   const picked: Array<[number, number]> = [];
   while (picked.length < level.questions) {
-    const pass = shuffle(pool);
-    // Avoid the boundary between passes producing the same question twice
-    // in a row (e.g., last of pass N == first of pass N+1).
-    if (picked.length > 0 && pass.length > 1) {
-      const last = picked[picked.length - 1];
-      if (pass[0][0] === last[0] && pass[0][1] === last[1]) {
-        const swapWith = 1 + Math.floor(Math.random() * (pass.length - 1));
-        [pass[0], pass[swapWith]] = [pass[swapWith], pass[0]];
-      }
-    }
-    for (const pair of pass) {
-      picked.push(pair);
-      if (picked.length >= level.questions) break;
-    }
+    const recent = new Set(
+      picked.slice(-recentWindow).map(([a, b]) => `${a},${b}`),
+    );
+    const fresh = pool.filter(([a, b]) => !recent.has(`${a},${b}`));
+    const source = fresh.length > 0 ? fresh : pool;
+    const pick = source[Math.floor(Math.random() * source.length)];
+    picked.push(pick);
   }
 
   const optionsCount = optionsCountForLevel(level.id);

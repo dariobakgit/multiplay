@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Character, MOVES } from "@/components/Mascot";
 import { EVIL_MASCOT, type MascotVariant } from "@/lib/mascots";
 import {
@@ -151,9 +151,19 @@ function Fight({
   onFinish: (won: boolean) => void;
 }) {
   const { t } = useI18n();
-  const [question, setQuestion] = useState<FnfQuestion>(() =>
-    buildFnfQuestion(),
-  );
+  const recentRef = useRef<Array<[number, number]>>([]);
+  const pushRecent = (q: FnfQuestion) => {
+    const next: Array<[number, number]> = [
+      ...recentRef.current,
+      [q.a, q.b],
+    ];
+    recentRef.current = next.slice(-6);
+  };
+  const [question, setQuestion] = useState<FnfQuestion>(() => {
+    const q = buildFnfQuestion();
+    recentRef.current = [[q.a, q.b]];
+    return q;
+  });
   const [position, setPosition] = useState(0);
   const [outcome, setOutcome] = useState<Outcome>("pending");
   const [picked, setPicked] = useState<number | null>(null);
@@ -229,7 +239,9 @@ function Fight({
   }
 
   function nextRound() {
-    setQuestion(buildFnfQuestion());
+    const q = buildFnfQuestion(recentRef.current);
+    pushRecent(q);
+    setQuestion(q);
     setOutcome("pending");
     setPicked(null);
     setTimeLeft(FNF_QUESTION_TIME_MS);

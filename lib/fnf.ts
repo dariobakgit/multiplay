@@ -25,10 +25,18 @@ const EASY_POOL: Array<[number, number]> = (() => {
  * Generates a single FNF round question.
  * 70% of the time uses "hard" pairs (both factors ≥ 4); otherwise
  * an "easy" pair with at least one factor in {2,3}. Never table of 1.
+ *
+ * `exclude` is a list of (a, b) pairs from recent rounds to avoid —
+ * prevents immediate repeats across turns.
  */
-export function buildFnfQuestion(): FnfQuestion {
+export function buildFnfQuestion(
+  exclude: Array<[number, number]> = [],
+): FnfQuestion {
   const pool = Math.random() < 0.7 ? HARD_POOL : EASY_POOL;
-  const [a, b] = pool[Math.floor(Math.random() * pool.length)];
+  const blocked = new Set(exclude.map(([a, b]) => `${a},${b}`));
+  const fresh = pool.filter(([a, b]) => !blocked.has(`${a},${b}`));
+  const source = fresh.length > 0 ? fresh : pool;
+  const [a, b] = source[Math.floor(Math.random() * source.length)];
   const answer = a * b;
   return { a, b, answer, options: makeOptions(answer, 4) };
 }
