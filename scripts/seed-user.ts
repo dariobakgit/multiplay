@@ -27,7 +27,8 @@ try {
   // relies on real env
 }
 
-const TOTAL_LEVELS = 41;
+const TOTAL_MATH_LEVELS = 41;
+const TOTAL_LANGUAGE_LEVELS = 15;
 
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -104,23 +105,32 @@ async function main() {
     );
     console.log(`   ✓ Profile listo`);
 
-    // Wipe and reinsert progress so it's exactly 41 passed rows.
+    // Wipe and reinsert progress for both tracks (math + language).
     await pg.query(`delete from progress where user_id = $1`, [userId]);
+    const rows: Array<[string, number, string, number, number, boolean, number]> = [];
+    for (let i = 0; i < TOTAL_MATH_LEVELS; i++) {
+      rows.push([userId, i + 1, "math", 14, 14, true, 3]);
+    }
+    for (let i = 0; i < TOTAL_LANGUAGE_LEVELS; i++) {
+      rows.push([userId, i + 1, "language", 14, 14, true, 3]);
+    }
     const values: string[] = [];
     const params: Array<string | number | boolean> = [];
-    for (let i = 0; i < TOTAL_LEVELS; i++) {
-      const base = i * 6;
+    rows.forEach((r, i) => {
+      const base = i * 7;
       values.push(
-        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, now())`,
+        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, now())`,
       );
-      params.push(userId, i + 1, 14, 14, true, 3);
-    }
+      params.push(...r);
+    });
     await pg.query(
-      `insert into progress (user_id, level_id, score, total, passed, stars, updated_at)
+      `insert into progress (user_id, level_id, track, score, total, passed, stars, updated_at)
        values ${values.join(", ")}`,
       params,
     );
-    console.log(`   ✓ ${TOTAL_LEVELS} niveles pasados con 3 estrellas cada uno`);
+    console.log(
+      `   ✓ ${TOTAL_MATH_LEVELS} niveles de Mate + ${TOTAL_LANGUAGE_LEVELS} de Lengua pasados con 3 estrellas`,
+    );
   } finally {
     await pg.end();
   }

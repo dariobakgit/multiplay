@@ -14,7 +14,7 @@ export default function LoginPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-10">
       <div className="text-center">
-        <div className="text-6xl">✖️</div>
+        <div className="text-6xl">🌱</div>
         <h1 className="mt-3 text-3xl font-black text-slate-900">
           {t("auth.app_title")}
         </h1>
@@ -25,7 +25,6 @@ export default function LoginPage() {
         action={action}
         className="mt-8 space-y-3"
         autoComplete="on"
-        method="post"
       >
         <input
           id="username"

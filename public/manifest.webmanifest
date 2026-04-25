@@ -1,7 +1,7 @@
 {
-  "name": "Tablas · Aprende Multiplicando",
-  "short_name": "Tablas",
-  "description": "Aprende las tablas de multiplicar en 3 días.",
+  "name": "Multiplay · Mate y Lengua",
+  "short_name": "Multiplay",
+  "description": "Aprendé tablas de multiplicar y gramática jugando.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

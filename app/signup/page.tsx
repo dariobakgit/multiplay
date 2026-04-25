@@ -25,7 +25,6 @@ export default function SignupPage() {
         action={action}
         className="mt-8 space-y-3"
         autoComplete="on"
-        method="post"
       >
         <input
           id="username"

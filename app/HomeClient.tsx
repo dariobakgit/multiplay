@@ -7,22 +7,32 @@ import {
   formatLevelSubtitle,
   formatLevelTitle,
   levelsByDay,
-  TOTAL_LEVELS,
+  totalLevels,
   type Level,
 } from "@/lib/curriculum";
 import { MASCOTS } from "@/lib/mascots";
 import {
   isUnlocked,
   overallPercent,
+  passedCountFor,
+  unlockedMascotCount,
   type Progress,
 } from "@/lib/progress-helpers";
 import { resetProgress } from "@/lib/progress-db";
+import { TRACKS, type Track } from "@/lib/tracks";
 import { logoutAction } from "./(auth)/actions";
-import { Mascot, type Mood } from "@/components/Mascot";
+import { Mascot, type Mood, Character } from "@/components/Mascot";
 import type { MascotVariant } from "@/lib/mascots";
 import { loadBestStreak } from "@/lib/streak";
 import { FNF_UNLOCK_CORRECT, loadLastExam } from "@/lib/exam-state";
 import { useI18n } from "@/lib/i18n/context";
+
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
+const TRACK_EMOJI: Record<Track, string> = {
+  math: "🧮",
+  language: "📚",
+};
 
 export default function HomeClient({
   username,
@@ -42,12 +52,7 @@ export default function HomeClient({
   const [muted, setMuted] = useState(false);
   const [bestStreak, setBestStreak] = useState(0);
   const [fnfUnlocked, setFnfUnlocked] = useState(isAdmin);
-  const passed = Object.values(progress.results).filter((r) => r.passed).length;
-  const examUnlocked = progress.results[29]?.passed === true;
-  const pct = overallPercent(progress);
-
-  const mascot = pickHomeMascot(t, username, passed, selectedMascot.name);
-  const unlockedCount = passed;
+  const [activeTrack, setActiveTrack] = useState<Track | null>(null);
 
   useEffect(() => {
     audio.init();
@@ -63,195 +68,366 @@ export default function HomeClient({
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
-      <header className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">
-              {t("home.greeting", { name: username })}
-            </h1>
-            <p className="mt-1 text-sm text-slate-600">{t("home.subtitle")}</p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleLocale}
-                className="flex h-8 min-w-8 items-center justify-center rounded-full bg-white px-2 text-[10px] font-black uppercase tracking-wide text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
-                aria-label={t("home.lang_toggle")}
-              >
-                {locale === "es" ? "ES" : "EN"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const m = audio.toggleMute();
-                  setMuted(m);
-                  if (!m) audio.playMusic("menu");
-                }}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
-                aria-label={muted ? t("home.sound_unmute") : t("home.sound_mute")}
-              >
-                {muted ? "🔇" : "🔊"}
-              </button>
-              <form action={logoutAction}>
-                <button
-                  type="submit"
-                  className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-slate-200 hover:text-rose-600"
-                >
-                  {t("home.logout")}
-                </button>
-              </form>
-            </div>
-            <button
-              onClick={() => {
-                if (!confirm(t("home.reset_confirm", { name: username })))
-                  return;
-                startTransition(async () => {
-                  await resetProgress();
-                });
-              }}
-              disabled={pending}
-              className="text-[11px] font-semibold text-slate-400 hover:text-rose-600 disabled:opacity-50"
-            >
-              {pending ? t("home.resetting") : t("home.reset")}
-            </button>
-          </div>
-        </div>
+      <Header
+        t={t}
+        locale={locale}
+        toggleLocale={toggleLocale}
+        muted={muted}
+        setMuted={setMuted}
+        username={username}
+        pending={pending}
+        startTransition={startTransition}
+        showBack={activeTrack !== null}
+        onBack={() => setActiveTrack(null)}
+      />
 
-        <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-semibold text-slate-700">
-              {t("home.progress_total")}
-            </span>
-            <span className="font-bold text-brand-600">
-              {passed} / {TOTAL_LEVELS}
-            </span>
-          </div>
-          <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="mt-5 flex items-end gap-3">
-          <div className="min-w-0 flex-1">
-            <Mascot
-              mood={mascot.mood}
-              message={mascot.messages}
-              size="md"
-              variant={selectedMascot}
-            />
-          </div>
-          {bestStreak >= 2 && (
-            <div className="shrink-0 rounded-2xl bg-amber-50 px-3 py-2 text-center shadow-sm ring-1 ring-amber-200">
-              <div className="text-2xl leading-none">🔥</div>
-              <div className="mt-1 text-xl font-black leading-none text-amber-700">
-                {bestStreak}
-              </div>
-              <div className="mt-1 whitespace-pre-line text-[9px] font-bold uppercase leading-tight text-amber-700">
-                {t("home.best_streak")}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {examUnlocked ? (
-          <Link
-            href="/exam"
-            className="mt-4 flex items-center justify-between rounded-2xl bg-indigo-50 px-4 py-3 ring-1 ring-indigo-200 transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-indigo-700">
-                {t("home.exam_title")}
-              </p>
-              <p className="text-sm font-black text-indigo-900">
-                {t("home.exam_subtitle")}
-              </p>
-            </div>
-            <span className="text-indigo-700">→</span>
-          </Link>
-        ) : (
-          <div className="mt-4 flex cursor-not-allowed items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 opacity-70 ring-1 ring-slate-200">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                {t("home.exam_locked_title")}
-              </p>
-              <p className="text-sm font-black text-slate-500">
-                {t("home.exam_locked_subtitle")}
-              </p>
-            </div>
-            <span className="text-slate-400">🔒</span>
-          </div>
-        )}
-
-        {fnfUnlocked && (
-          <Link
-            href="/fnf"
-            className="mt-3 flex items-center justify-between rounded-2xl bg-gradient-to-r from-rose-600 to-slate-900 px-4 py-3 ring-1 ring-rose-900 transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-rose-200">
-                {t("home.fnf_title")}
-              </p>
-              <p className="text-sm font-black text-white">
-                {t("home.fnf_subtitle")}
-              </p>
-            </div>
-            <span className="text-rose-200">→</span>
-          </Link>
-        )}
-
-        <Link
-          href="/library"
-          className="mt-3 flex items-center justify-between rounded-2xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200 transition hover:-translate-y-0.5 hover:shadow-md"
-        >
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
-              {t("home.library_title")}
-            </p>
-            <p className="text-sm font-black text-amber-900">
-              {t("home.library_subtitle", {
-                n: unlockedCount,
-                total: MASCOTS.length,
-              })}
-            </p>
-          </div>
-          <span className="text-amber-700">→</span>
-        </Link>
-
-        {isAdmin && (
-          <Link
-            href="/admin"
-            className="mt-3 flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-3 ring-1 ring-slate-800 transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                {t("home.admin_title")}
-              </p>
-              <p className="text-sm font-black text-white">
-                {t("home.admin_subtitle")}
-              </p>
-            </div>
-            <span className="text-slate-400">→</span>
-          </Link>
-        )}
-      </header>
-
-      {[1, 2, 3].map((d) => (
-        <DaySection
-          key={d}
-          day={d as 1 | 2 | 3}
-          levels={levelsByDay(d as 1 | 2 | 3)}
+      {activeTrack === null ? (
+        <SelectorView
+          t={t}
+          username={username}
           progress={progress}
+          selectedMascot={selectedMascot}
+          isAdmin={isAdmin}
+          onPickTrack={setActiveTrack}
         />
-      ))}
+      ) : (
+        <LevelsView
+          track={activeTrack}
+          t={t}
+          progress={progress}
+          bestStreak={bestStreak}
+          fnfUnlocked={fnfUnlocked}
+        />
+      )}
     </main>
   );
 }
 
-type TFn = (key: string, vars?: Record<string, string | number>) => string;
+function Header({
+  t,
+  locale,
+  toggleLocale,
+  muted,
+  setMuted,
+  username,
+  pending,
+  startTransition,
+  showBack,
+  onBack,
+}: {
+  t: TFn;
+  locale: "es" | "en";
+  toggleLocale: () => void;
+  muted: boolean;
+  setMuted: (m: boolean) => void;
+  username: string;
+  pending: boolean;
+  startTransition: ReturnType<typeof useTransition>[1];
+  showBack: boolean;
+  onBack: () => void;
+}) {
+  return (
+    <header className="mb-6 flex items-start justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2">
+        {showBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-500 text-lg font-black text-white shadow-md shadow-brand-500/30 ring-1 ring-brand-600 active:scale-95"
+            aria-label={t("topbar.back")}
+          >
+            ←
+          </button>
+        )}
+        <div className="min-w-0">
+          <h1 className="truncate text-3xl font-black tracking-tight text-slate-900">
+            {t("home.greeting", { name: username })}
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">{t("home.subtitle")}</p>
+        </div>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleLocale}
+            className="flex h-8 min-w-8 items-center justify-center rounded-full bg-white px-2 text-[10px] font-black uppercase tracking-wide text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+            aria-label={t("home.lang_toggle")}
+          >
+            {locale === "es" ? "ES" : "EN"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const m = audio.toggleMute();
+              setMuted(m);
+              if (!m) audio.playMusic("menu");
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+            aria-label={muted ? t("home.sound_unmute") : t("home.sound_mute")}
+          >
+            {muted ? "🔇" : "🔊"}
+          </button>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-slate-200 hover:text-rose-600"
+            >
+              {t("home.logout")}
+            </button>
+          </form>
+        </div>
+        <button
+          onClick={() => {
+            if (!confirm(t("home.reset_confirm", { name: username })))
+              return;
+            startTransition(async () => {
+              await resetProgress();
+            });
+          }}
+          disabled={pending}
+          className="text-[11px] font-semibold text-slate-400 hover:text-rose-600 disabled:opacity-50"
+        >
+          {pending ? t("home.resetting") : t("home.reset")}
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function SelectorView({
+  t,
+  username,
+  progress,
+  selectedMascot,
+  isAdmin,
+  onPickTrack,
+}: {
+  t: TFn;
+  username: string;
+  progress: Progress;
+  selectedMascot: MascotVariant;
+  isAdmin: boolean;
+  onPickTrack: (track: Track) => void;
+}) {
+  const totalPassedAcrossTracks = unlockedMascotCount(progress);
+  const passedTotal = TRACKS.reduce(
+    (sum, t) => sum + passedCountFor(t, progress),
+    0,
+  );
+  const mascot = pickHomeMascot(t, username, passedTotal, selectedMascot.name);
+
+  return (
+    <div className="flex flex-col items-center">
+      {/* Mascot */}
+      <div className="flex flex-col items-center gap-3 py-2">
+        <Character variant={selectedMascot} size="lg" mood={mascot.mood} />
+        <p className="rounded-2xl bg-white px-4 py-2 text-center text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200">
+          {mascot.messages[0]}
+        </p>
+      </div>
+
+      {/* Library card */}
+      <Link
+        href="/library"
+        className="mt-6 flex w-full items-center justify-between rounded-2xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200 transition hover:-translate-y-0.5 hover:shadow-md"
+      >
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+            {t("home.library_title")}
+          </p>
+          <p className="text-sm font-black text-amber-900">
+            {t("home.library_subtitle", {
+              n: totalPassedAcrossTracks,
+              total: MASCOTS.length,
+            })}
+          </p>
+        </div>
+        <span className="text-amber-700">→</span>
+      </Link>
+
+      {/* Subject picker */}
+      <div className="mt-8 w-full">
+        <p className="mb-3 text-center text-sm font-bold uppercase tracking-wide text-slate-500">
+          {t("home.pick_subject")}
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {TRACKS.map((track) => {
+            const passed = passedCountFor(track, progress);
+            const total = totalLevels(track);
+            const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
+            return (
+              <button
+                key={track}
+                type="button"
+                onClick={() => onPickTrack(track)}
+                className="flex flex-col items-center gap-2 rounded-2xl bg-white p-5 shadow-sm ring-2 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-brand-500 hover:shadow-md active:scale-[0.98]"
+              >
+                <span className="text-5xl">{TRACK_EMOJI[track]}</span>
+                <span className="text-lg font-black text-slate-900">
+                  {t(`track.${track}`)}
+                </span>
+                <span className="text-xs font-bold text-slate-500">
+                  {passed} / {total}
+                </span>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {isAdmin && (
+        <Link
+          href="/admin"
+          className="mt-6 flex w-full items-center justify-between rounded-2xl bg-slate-900 px-4 py-3 ring-1 ring-slate-800 transition hover:-translate-y-0.5 hover:shadow-md"
+        >
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+              {t("home.admin_title")}
+            </p>
+            <p className="text-sm font-black text-white">
+              {t("home.admin_subtitle")}
+            </p>
+          </div>
+          <span className="text-slate-400">→</span>
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function LevelsView({
+  track,
+  t,
+  progress,
+  bestStreak,
+  fnfUnlocked,
+}: {
+  track: Track;
+  t: TFn;
+  progress: Progress;
+  bestStreak: number;
+  fnfUnlocked: boolean;
+}) {
+  const passedThisTrack = passedCountFor(track, progress);
+  const totalThisTrack = totalLevels(track);
+  const pct = overallPercent(track, progress, totalThisTrack);
+  const examUnlocked = progress.results.math[29]?.passed === true;
+
+  return (
+    <div>
+      {/* Track header */}
+      <div className="mb-4 flex items-center gap-3">
+        <span className="text-4xl">{TRACK_EMOJI[track]}</span>
+        <div>
+          <h2 className="text-2xl font-black text-slate-900">
+            {t(`track.${track}`)}
+          </h2>
+          <p className="text-xs font-semibold text-slate-500">
+            {passedThisTrack} / {totalThisTrack}
+          </p>
+        </div>
+        {bestStreak >= 2 && (
+          <div className="ml-auto rounded-2xl bg-amber-50 px-3 py-2 text-center shadow-sm ring-1 ring-amber-200">
+            <div className="text-xl leading-none">🔥</div>
+            <div className="text-base font-black leading-none text-amber-700">
+              {bestStreak}
+            </div>
+            <div className="mt-0.5 whitespace-pre-line text-[8px] font-bold uppercase leading-tight text-amber-700">
+              {t("home.best_streak")}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-semibold text-slate-700">
+            {t("home.progress_total")}
+          </span>
+          <span className="font-bold text-brand-600">{pct}%</span>
+        </div>
+        <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Math-only bonus modes */}
+      {track === "math" && (
+        <div className="mt-3 space-y-3">
+          {examUnlocked ? (
+            <Link
+              href="/exam"
+              className="flex items-center justify-between rounded-2xl bg-indigo-50 px-4 py-3 ring-1 ring-indigo-200 transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-indigo-700">
+                  {t("home.exam_title")}
+                </p>
+                <p className="text-sm font-black text-indigo-900">
+                  {t("home.exam_subtitle")}
+                </p>
+              </div>
+              <span className="text-indigo-700">→</span>
+            </Link>
+          ) : (
+            <div className="flex cursor-not-allowed items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 opacity-70 ring-1 ring-slate-200">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  {t("home.exam_locked_title")}
+                </p>
+                <p className="text-sm font-black text-slate-500">
+                  {t("home.exam_locked_subtitle")}
+                </p>
+              </div>
+              <span className="text-slate-400">🔒</span>
+            </div>
+          )}
+
+          {fnfUnlocked && (
+            <Link
+              href="/fnf"
+              className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-rose-600 to-slate-900 px-4 py-3 ring-1 ring-rose-900 transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-rose-200">
+                  {t("home.fnf_title")}
+                </p>
+                <p className="text-sm font-black text-white">
+                  {t("home.fnf_subtitle")}
+                </p>
+              </div>
+              <span className="text-rose-200">→</span>
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Day sections */}
+      <div className="mt-6">
+        {[1, 2, 3].map((d) => (
+          <DaySection
+            key={`${track}-${d}`}
+            track={track}
+            day={d as 1 | 2 | 3}
+            levels={levelsByDay(track, d as 1 | 2 | 3)}
+            progress={progress}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function pickHomeMascot(
   t: TFn,
@@ -269,30 +445,8 @@ function pickHomeMascot(
       ],
     };
   }
-  if (passedCount >= TOTAL_LEVELS) {
-    return {
-      mood: "celebrate",
-      messages: [
-        t("mascot.all_done_title", { name: username }),
-        t("mascot.all_done_sub"),
-      ],
-    };
-  }
-  if (passedCount >= TOTAL_LEVELS - 3) {
-    return {
-      mood: "celebrate",
-      messages: [t("mascot.almost_done1"), t("mascot.almost_done2")],
-    };
-  }
-  if (passedCount >= Math.floor(TOTAL_LEVELS / 2)) {
-    return {
-      mood: "happy",
-      messages: [
-        t("mascot.halfway1", { name: username }),
-        t("mascot.halfway2"),
-      ],
-    };
-  }
+  // Use a generic "great to see you" message; the per-track progress is
+  // visible in the subject buttons.
   return {
     mood: "happy",
     messages: [t("mascot.default1"), t("mascot.default2")],
@@ -300,17 +454,22 @@ function pickHomeMascot(
 }
 
 function DaySection({
+  track,
   day,
   levels,
   progress,
 }: {
+  track: Track;
   day: 1 | 2 | 3;
   levels: Level[];
   progress: Progress;
 }) {
   const { t } = useI18n();
-  const label = t(`home.day${day}`);
-  const dayPassed = levels.filter((l) => progress.results[l.id]?.passed).length;
+  if (levels.length === 0) return null;
+  const label = t(`home.${track}.day${day}`);
+  const dayPassed = levels.filter(
+    (l) => progress.results[track][l.id]?.passed,
+  ).length;
 
   return (
     <section className="mb-8">
@@ -322,18 +481,31 @@ function DaySection({
       </div>
       <ol className="space-y-3">
         {levels.map((l) => (
-          <LevelCard key={l.id} level={l} progress={progress} />
+          <LevelCard
+            key={`${track}-${l.id}`}
+            track={track}
+            level={l}
+            progress={progress}
+          />
         ))}
       </ol>
     </section>
   );
 }
 
-function LevelCard({ level, progress }: { level: Level; progress: Progress }) {
+function LevelCard({
+  track,
+  level,
+  progress,
+}: {
+  track: Track;
+  level: Level;
+  progress: Progress;
+}) {
   const { t } = useI18n();
-  const unlocked = isUnlocked(level.id, progress);
-  const r = progress.results[level.id];
-  const stars = progress.stars[level.id] ?? 0;
+  const unlocked = isUnlocked(track, level.id, progress);
+  const r = progress.results[track][level.id];
+  const stars = progress.stars[track][level.id] ?? 0;
   const passed = r?.passed;
 
   const ring = passed
@@ -341,6 +513,8 @@ function LevelCard({ level, progress }: { level: Level; progress: Progress }) {
     : unlocked
     ? "ring-slate-200 bg-white"
     : "ring-slate-200 bg-slate-50 opacity-60";
+
+  const isMixBadge = level.track === "math" && level.kind === "mix";
 
   const inner = (
     <div
@@ -360,7 +534,7 @@ function LevelCard({ level, progress }: { level: Level; progress: Progress }) {
           <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
             {t("library.level_n", { n: level.id })}
           </span>
-          {level.kind === "mix" && (
+          {isMixBadge && (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-700">
               {t("level.mix_tag")}
             </span>
@@ -397,7 +571,7 @@ function LevelCard({ level, progress }: { level: Level; progress: Progress }) {
   return (
     <li>
       {unlocked ? (
-        <Link href={`/level/${level.id}`} className="block">
+        <Link href={`/level/${track}/${level.id}`} className="block">
           {inner}
         </Link>
       ) : (

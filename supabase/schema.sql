@@ -36,17 +36,48 @@ create policy "profiles_update_own"
   with check (auth.uid() = id);
 
 
--- Progress: one row per (user, level)
+-- Progress: one row per (user, level, track)
+-- "track" separates the modules (math vs language). Defaulting to 'math'
+-- keeps existing rows valid if anyone already had data in this table.
 create table if not exists public.progress (
   user_id uuid not null references auth.users(id) on delete cascade,
   level_id int not null check (level_id between 1 and 100),
+  track text not null default 'math' check (track in ('math', 'language')),
   score int not null check (score >= 0),
   total int not null check (total > 0),
   passed boolean not null default false,
   stars int not null default 0 check (stars between 0 and 3),
   updated_at timestamptz not null default now(),
-  primary key (user_id, level_id)
+  primary key (user_id, level_id, track)
 );
+
+-- For schemas created before the multi-track refactor: add the column and
+-- migrate the primary key to include it. Idempotent.
+alter table public.progress
+  add column if not exists track text not null default 'math'
+  check (track in ('math', 'language'));
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'progress_pkey'
+      and conrelid = 'public.progress'::regclass
+  ) then
+    if not exists (
+      select 1
+      from information_schema.key_column_usage
+      where table_schema = 'public'
+        and table_name = 'progress'
+        and constraint_name = 'progress_pkey'
+        and column_name = 'track'
+    ) then
+      alter table public.progress drop constraint progress_pkey;
+      alter table public.progress add primary key (user_id, level_id, track);
+    end if;
+  end if;
+end $$;
 
 alter table public.progress enable row level security;
 
