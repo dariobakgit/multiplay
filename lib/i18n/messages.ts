@@ -6,12 +6,12 @@ type Dict = Record<string, string>;
 
 const es: Dict = {
   // meta
-  "meta.app_name": "Tablas",
+  "meta.app_name": "Multiplay",
   "topbar.back": "Volver",
 
   // home
   "home.greeting": "¡Hola, {name}! 👋",
-  "home.subtitle": "Aprende todas las tablas en 3 días 🚀",
+  "home.subtitle": "Aprendé Mate y Lengua 🚀",
   "home.logout": "Salir",
   "home.reset": "reiniciar",
   "home.resetting": "reiniciando...",
@@ -27,9 +27,19 @@ const es: Dict = {
   "home.exam_subtitle": "20 preguntas · nota 1 a 10",
   "home.exam_locked_title": "🔒 Modo Examen",
   "home.exam_locked_subtitle": "Pasá el nivel 29 para desbloquearlo",
-  "home.day1": "Día 1 · Tablas 1 a 4",
-  "home.day2": "Día 2 · Tablas 5 a 7",
-  "home.day3": "Día 3 · Tablas 8 a 10 + Final",
+  "home.math.day1": "Día 1 · Tablas 1 a 4",
+  "home.math.day2": "Día 2 · Tablas 5 a 7",
+  "home.math.day3": "Día 3 · Tablas 8 a 10 + Final",
+  "home.language.day1": "Día 1 · Sustantivos",
+  "home.language.day2": "Día 2 · Mezcla y adjetivos",
+  "home.language.day3": "Día 3 · Verbos + desafío final",
+  "track.math": "Matemática",
+  "track.language": "Lengua",
+  "home.pick_subject": "¿Qué querés practicar?",
+  "home.pick_theme": "Elegí un tema",
+  "home.theme_empty": "Próximamente",
+  "theme.tables": "Tablas",
+  "theme.nouns_verbs": "Sustantivos y Verbos",
   "home.best_streak": "mejor\nracha",
   "home.sound_mute": "Silenciar",
   "home.sound_unmute": "Activar sonido",
@@ -86,6 +96,70 @@ const es: Dict = {
   "levelsub.mix_repeat": "Otra vuelta para fijar",
   "leveltitle.final": "¡Desafío Final!",
   "levelsub.final": "Todas las tablas mezcladas",
+
+  // language level titles & subtitles
+  "lang.title.noun_common_p1": "Sustantivos comunes · parte 1",
+  "lang.title.noun_common_p2": "Sustantivos comunes · parte 2",
+  "lang.title.noun_common_p3": "Sustantivos comunes · parte 3",
+  "lang.sub.noun_common_p1": "Reconocé palabras sueltas",
+  "lang.sub.noun_common_p2": "Encontralo en una oración",
+  "lang.sub.noun_common_p3": "Contá cuántos hay",
+  "lang.title.noun_proper_p1": "Sustantivos propios · parte 1",
+  "lang.title.noun_proper_p2": "Sustantivos propios · parte 2",
+  "lang.title.noun_proper_p3": "Sustantivos propios · parte 3",
+  "lang.sub.noun_proper_p1": "Reconocé nombres propios",
+  "lang.sub.noun_proper_p2": "Encontralo en una oración",
+  "lang.sub.noun_proper_p3": "¿Cómo se escribe?",
+  "lang.title.noun_mix_a": "Común vs propio · A",
+  "lang.title.noun_mix_b": "Común vs propio · B",
+  "lang.sub.noun_mix_a": "Clasificá la palabra",
+  "lang.sub.noun_mix_b": "Clasificá en oraciones",
+  "lang.title.adjective_p1": "Adjetivos · parte 1",
+  "lang.title.adjective_p2": "Adjetivos · parte 2",
+  "lang.title.adjective_p3": "Adjetivos · parte 3",
+  "lang.sub.adjective_p1": "Reconocé adjetivos",
+  "lang.sub.adjective_p2": "¿Qué describe a...?",
+  "lang.sub.adjective_p3": "Encontralo en una oración",
+  "lang.title.verb_p1": "Verbos · parte 1",
+  "lang.title.verb_p2": "Verbos · parte 2",
+  "lang.title.verb_p3": "Verbos · parte 3",
+  "lang.sub.verb_p1": "Reconocé verbos",
+  "lang.sub.verb_p2": "¿Qué hace...?",
+  "lang.sub.verb_p3": "Encontralo en una oración",
+  "lang.title.final": "Desafío Final de Lengua",
+  "lang.sub.final": "Mezcla de todos los temas",
+
+  // language intro screens (only first level of each topic shows them)
+  "lang.intro.noun_common.title": "¡A reconocer sustantivos comunes! 📦",
+  "lang.intro.noun_common.body":
+    "Los sustantivos comunes nombran cosas, animales o personas comunes. Pueden empezar con minúscula.",
+  "lang.intro.noun_common.examples":
+    "Ejemplos: perro, mesa, niño, pelota.",
+  "lang.intro.noun_proper.title": "¡A reconocer sustantivos propios! 🌎",
+  "lang.intro.noun_proper.body":
+    "Los sustantivos propios nombran personas, lugares o mascotas con nombre específico. Siempre empiezan con mayúscula.",
+  "lang.intro.noun_proper.examples":
+    "Ejemplos: María, Buenos Aires, Firulais, Argentina.",
+  "lang.intro.noun_mix.title": "¡A clasificar sustantivos! 🔀",
+  "lang.intro.noun_mix.body":
+    "Vamos a decidir si una palabra es un sustantivo común o propio. Recordá: los propios siempre empiezan con mayúscula.",
+  "lang.intro.noun_mix.examples":
+    "Ejemplos: \"perro\" → común, \"Firulais\" → propio.",
+  "lang.intro.adjective.title": "¡A reconocer adjetivos! 🌈",
+  "lang.intro.adjective.body":
+    "Los adjetivos son palabras que describen cómo es algo o alguien.",
+  "lang.intro.adjective.examples":
+    "Ejemplos: alto, rojo, feliz, rápido.",
+  "lang.intro.verb.title": "¡A reconocer verbos! 🏃",
+  "lang.intro.verb.body":
+    "Los verbos son palabras que expresan una acción.",
+  "lang.intro.verb.examples":
+    "Ejemplos: correr, comer, jugar, leer.",
+  "lang.intro.final.title": "¡Desafío Final de Lengua! 👑",
+  "lang.intro.final.body":
+    "Mezcla de todo: sustantivos, adjetivos y verbos. Tomate tu tiempo y leé bien cada pregunta.",
+  "lang.intro.final.examples":
+    "Vas a usar todo lo que aprendiste en los niveles anteriores.",
 
   // intro mascot
   "intro.learn_title": "¡A aprender la tabla del {table}! {emoji}",
@@ -166,7 +240,7 @@ const es: Dict = {
   "fnf.lost_retry": "Reintentar ⚔️",
 
   // login/signup
-  "auth.app_title": "Tablas",
+  "auth.app_title": "Multiplay",
   "auth.login_sub": "Entrá con tu usuario",
   "auth.signup_sub": "Elegí un nombre y una contraseña",
   "auth.signup_title": "Creá tu usuario",
@@ -194,12 +268,12 @@ const es: Dict = {
 
 const en: Dict = {
   // meta
-  "meta.app_name": "Tables",
+  "meta.app_name": "Multiplay",
   "topbar.back": "Back",
 
   // home
   "home.greeting": "Hi, {name}! 👋",
-  "home.subtitle": "Learn all the tables in 3 days 🚀",
+  "home.subtitle": "Learn Math and Language 🚀",
   "home.logout": "Log out",
   "home.reset": "reset",
   "home.resetting": "resetting...",
@@ -215,9 +289,19 @@ const en: Dict = {
   "home.exam_subtitle": "20 questions · grade 1-10",
   "home.exam_locked_title": "🔒 Exam Mode",
   "home.exam_locked_subtitle": "Pass level 29 to unlock",
-  "home.day1": "Day 1 · Tables 1 to 4",
-  "home.day2": "Day 2 · Tables 5 to 7",
-  "home.day3": "Day 3 · Tables 8 to 10 + Final",
+  "home.math.day1": "Day 1 · Tables 1 to 4",
+  "home.math.day2": "Day 2 · Tables 5 to 7",
+  "home.math.day3": "Day 3 · Tables 8 to 10 + Final",
+  "home.language.day1": "Day 1 · Nouns",
+  "home.language.day2": "Day 2 · Mix and adjectives",
+  "home.language.day3": "Day 3 · Verbs + final challenge",
+  "track.math": "Math",
+  "track.language": "Language",
+  "home.pick_subject": "What do you want to practice?",
+  "home.pick_theme": "Pick a topic",
+  "home.theme_empty": "Coming soon",
+  "theme.tables": "Tables",
+  "theme.nouns_verbs": "Nouns & Verbs",
   "home.best_streak": "best\nstreak",
   "home.sound_mute": "Mute",
   "home.sound_unmute": "Unmute",
@@ -274,6 +358,70 @@ const en: Dict = {
   "levelsub.mix_repeat": "Another round to lock it in",
   "leveltitle.final": "Final Challenge!",
   "levelsub.final": "All tables mixed together",
+
+  // language level titles & subtitles
+  "lang.title.noun_common_p1": "Common nouns · part 1",
+  "lang.title.noun_common_p2": "Common nouns · part 2",
+  "lang.title.noun_common_p3": "Common nouns · part 3",
+  "lang.sub.noun_common_p1": "Spot the word",
+  "lang.sub.noun_common_p2": "Find it in a sentence",
+  "lang.sub.noun_common_p3": "Count how many",
+  "lang.title.noun_proper_p1": "Proper nouns · part 1",
+  "lang.title.noun_proper_p2": "Proper nouns · part 2",
+  "lang.title.noun_proper_p3": "Proper nouns · part 3",
+  "lang.sub.noun_proper_p1": "Spot proper names",
+  "lang.sub.noun_proper_p2": "Find it in a sentence",
+  "lang.sub.noun_proper_p3": "How is it written?",
+  "lang.title.noun_mix_a": "Common vs proper · A",
+  "lang.title.noun_mix_b": "Common vs proper · B",
+  "lang.sub.noun_mix_a": "Classify the word",
+  "lang.sub.noun_mix_b": "Classify in sentences",
+  "lang.title.adjective_p1": "Adjectives · part 1",
+  "lang.title.adjective_p2": "Adjectives · part 2",
+  "lang.title.adjective_p3": "Adjectives · part 3",
+  "lang.sub.adjective_p1": "Spot adjectives",
+  "lang.sub.adjective_p2": "What describes...?",
+  "lang.sub.adjective_p3": "Find it in a sentence",
+  "lang.title.verb_p1": "Verbs · part 1",
+  "lang.title.verb_p2": "Verbs · part 2",
+  "lang.title.verb_p3": "Verbs · part 3",
+  "lang.sub.verb_p1": "Spot verbs",
+  "lang.sub.verb_p2": "What does... do?",
+  "lang.sub.verb_p3": "Find it in a sentence",
+  "lang.title.final": "Language Final Challenge",
+  "lang.sub.final": "Mix of all topics",
+
+  // language intro screens
+  "lang.intro.noun_common.title": "Let's spot common nouns! 📦",
+  "lang.intro.noun_common.body":
+    "Common nouns name everyday things, animals or people. They can start with a lowercase letter.",
+  "lang.intro.noun_common.examples":
+    "Examples: dog, table, child, ball.",
+  "lang.intro.noun_proper.title": "Let's spot proper nouns! 🌎",
+  "lang.intro.noun_proper.body":
+    "Proper nouns name specific people, places or pets. They always start with a capital letter.",
+  "lang.intro.noun_proper.examples":
+    "Examples: María, Buenos Aires, Firulais, Argentina.",
+  "lang.intro.noun_mix.title": "Let's classify nouns! 🔀",
+  "lang.intro.noun_mix.body":
+    "We'll decide if a word is a common or proper noun. Remember: proper nouns always start with a capital letter.",
+  "lang.intro.noun_mix.examples":
+    "Examples: \"dog\" → common, \"Firulais\" → proper.",
+  "lang.intro.adjective.title": "Let's spot adjectives! 🌈",
+  "lang.intro.adjective.body":
+    "Adjectives describe what something or someone is like.",
+  "lang.intro.adjective.examples":
+    "Examples: tall, red, happy, fast.",
+  "lang.intro.verb.title": "Let's spot verbs! 🏃",
+  "lang.intro.verb.body":
+    "Verbs are words that express an action.",
+  "lang.intro.verb.examples":
+    "Examples: run, eat, play, read.",
+  "lang.intro.final.title": "Language Final Challenge! 👑",
+  "lang.intro.final.body":
+    "A mix of everything: nouns, adjectives and verbs. Take your time and read each question carefully.",
+  "lang.intro.final.examples":
+    "You'll use everything you learned in the previous levels.",
 
   // intro mascot
   "intro.learn_title": "Let's learn the {table}s table! {emoji}",
@@ -354,7 +502,7 @@ const en: Dict = {
   "fnf.lost_retry": "Retry ⚔️",
 
   // login/signup
-  "auth.app_title": "Tables",
+  "auth.app_title": "Multiplay",
   "auth.login_sub": "Log in with your username",
   "auth.signup_sub": "Pick a name and a password",
   "auth.signup_title": "Create your account",

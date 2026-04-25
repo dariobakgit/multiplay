@@ -17,7 +17,7 @@ export default async function ExamPage() {
     getSelectedMascotId(),
     loadProgress(),
   ]);
-  if (!progress.results[29]?.passed) redirect("/");
+  if (!progress.results.math?.tables?.[29]?.passed) redirect("/");
 
   const mascot = getMascotForLevel(selectedId) ?? DEFAULT_MASCOT;
   return <ExamClient mascot={mascot} userId={user.id} />;

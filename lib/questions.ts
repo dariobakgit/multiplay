@@ -1,15 +1,32 @@
-import type { Level } from "./curriculum";
+import type { Level, MathLevel } from "./curriculum";
+import { buildLanguageQuestions } from "./language-questions";
 
-export interface Question {
+export interface MathQuestion {
+  type: "math";
   a: number;
   b: number;
   answer: number;
   options: number[];
 }
 
+export interface LanguageQuestion {
+  type: "language";
+  /** The full prompt shown to the kid, including any sentence context. */
+  prompt: string;
+  /** Optional sentence/word that should be visually highlighted as a
+   * separate block under the prompt. */
+  context?: string;
+  /** Correct option text. */
+  answer: string;
+  /** All options (already shuffled, includes the answer). */
+  options: string[];
+}
+
+export type Question = MathQuestion | LanguageQuestion;
+
 /**
  * Number of answer choices per question — grows with level.
- * +2 options every 4 levels, starting at 4, capped at 8.
+ * +2 options every 4 levels, starting at 4, capped at 8. (Math only.)
  *   Lv 1-4: 4  · Lv 5-8: 6  · Lv 9+: 8
  */
 export function optionsCountForLevel(levelId: number): number {
@@ -28,7 +45,6 @@ export function shuffle<T>(arr: T[]): T[] {
 export function makeOptions(answer: number, count: number): number[] {
   const opts = new Set<number>([answer]);
   const pool: number[] = [];
-  // plausible distractors: nearby products
   for (let d = 1; d <= 12; d++) {
     pool.push(answer + d, answer - d, answer + d * 2, answer - d * 2);
   }
@@ -45,8 +61,7 @@ export function makeOptions(answer: number, count: number): number[] {
   return shuffle(Array.from(opts));
 }
 
-export function buildQuestions(level: Level): Question[] {
-  // Build the unique pool of (a, b) pairs valid for this level.
+export function buildMathQuestions(level: MathLevel): MathQuestion[] {
   const pool: Array<[number, number]> = [];
   const seen = new Set<string>();
   const addPair = (a: number, b: number) => {
@@ -60,9 +75,6 @@ export function buildQuestions(level: Level): Question[] {
   if (level.kind === "learn") {
     const t = level.tables[0];
     const factors = level.factors ?? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    // Include both (t, b) and its commutative twin (b, t). Same result,
-    // different look — almost doubles the pool for learn levels
-    // (5 → ~9 pairs) and teaches that a × b = b × a.
     for (const b of factors) {
       addPair(t, b);
       addPair(b, t);
@@ -73,8 +85,6 @@ export function buildQuestions(level: Level): Question[] {
     }
   }
 
-  // Greedy pick with a "recent window" so no pair repeats within the
-  // last N picks unless the pool is smaller than the window.
   const recentWindow = Math.max(1, Math.min(pool.length - 1, 6));
   const picked: Array<[number, number]> = [];
   while (picked.length < level.questions) {
@@ -90,6 +100,17 @@ export function buildQuestions(level: Level): Question[] {
   const optionsCount = optionsCountForLevel(level.id);
   return picked.map(([a, b]) => {
     const answer = a * b;
-    return { a, b, answer, options: makeOptions(answer, optionsCount) };
+    return {
+      type: "math",
+      a,
+      b,
+      answer,
+      options: makeOptions(answer, optionsCount),
+    };
   });
+}
+
+export function buildQuestions(level: Level): Question[] {
+  if (level.track === "math") return buildMathQuestions(level);
+  return buildLanguageQuestions(level);
 }

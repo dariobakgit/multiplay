@@ -5,6 +5,8 @@ import {
   loadProgress,
   selectMascot,
 } from "@/lib/progress-db";
+import { unlockedMascotCount } from "@/lib/progress-helpers";
+import { TRACKS } from "@/lib/tracks";
 import LibraryPageClient from "./LibraryPageClient";
 
 export const dynamic = "force-dynamic";
@@ -26,17 +28,18 @@ export default async function LibraryPage() {
     getSelectedMascotId(),
   ]);
 
-  const unlocked = Array.from(
-    new Set([
-      1, // Multi (default) always available
-      ...Object.entries(progress.results)
-        .filter(([, r]) => r.passed)
-        .map(([id]) => Number(id)),
-    ]),
-  );
-  const unlockedCount = Object.values(progress.results).filter(
-    (r) => r.passed,
-  ).length;
+  // A mascot N is unlocked if level N has been passed in any (track, theme).
+  const unlockedSet = new Set<number>([1]);
+  for (const t of TRACKS) {
+    const themes = progress.results[t] ?? {};
+    for (const theme of Object.keys(themes)) {
+      for (const [id, r] of Object.entries(themes[theme])) {
+        if (r.passed) unlockedSet.add(Number(id));
+      }
+    }
+  }
+  const unlocked = Array.from(unlockedSet);
+  const unlockedCount = unlockedMascotCount(progress);
 
   return (
     <LibraryPageClient

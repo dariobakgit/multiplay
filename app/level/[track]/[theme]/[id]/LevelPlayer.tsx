@@ -7,8 +7,10 @@ import {
   findLearnLevelFor,
   formatLevelSubtitle,
   formatLevelTitle,
-  TOTAL_LEVELS,
+  totalLevels,
   type Level,
+  type MathLevel,
+  type LanguageLevel,
 } from "@/lib/curriculum";
 import { buildQuestions, type Question } from "@/lib/questions";
 import { computeStars } from "@/lib/progress-helpers";
@@ -18,6 +20,7 @@ import { getMascotForLevel, type MascotVariant } from "@/lib/mascots";
 import { audio } from "@/lib/audio";
 import { loadCurrentStreak, saveStreak } from "@/lib/streak";
 import { useI18n } from "@/lib/i18n/context";
+import type { Track } from "@/lib/tracks";
 
 const CELEBRATE_MOVES = [
   "animate-mv-jump",
@@ -27,23 +30,32 @@ const CELEBRATE_MOVES = [
 
 type Stage = "intro" | "playing" | "result";
 type TFn = (key: string, vars?: Record<string, string | number>) => string;
+type OptionValue = number | string;
+
+function isCorrectAnswer(q: Question, option: OptionValue): boolean {
+  return option === q.answer;
+}
 
 export default function LevelPlayer({
   level,
+  track,
+  theme,
   selectedMascot,
   userId,
 }: {
   level: Level;
+  track: Track;
+  theme: string;
   selectedMascot: MascotVariant;
   userId: string;
 }) {
-  const [stage, setStage] = useState<Stage>("intro");
+  const [stage, setStage] = useState<Stage>(level.showIntro ? "intro" : "playing");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [idx, setIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [wrong, setWrong] = useState<Question[]>([]);
   const [locked, setLocked] = useState(false);
-  const [picked, setPicked] = useState<number | null>(null);
+  const [picked, setPicked] = useState<OptionValue | null>(null);
   const [streak, setStreak] = useState(0);
   const [, startTransition] = useTransition();
 
@@ -54,8 +66,8 @@ export default function LevelPlayer({
     setWrong([]);
     setPicked(null);
     setLocked(false);
-    setStage("intro");
-  }, [level.id]);
+    setStage(level.showIntro ? "intro" : "playing");
+  }, [level.id, level.track, level.showIntro]);
 
   useEffect(() => {
     setStreak(loadCurrentStreak(userId));
@@ -83,10 +95,10 @@ export default function LevelPlayer({
     setStage("playing");
   }
 
-  function onPick(option: number) {
+  function onPick(option: OptionValue) {
     if (locked) return;
     const q = questions[idx];
-    const correct = option === q.answer;
+    const correct = isCorrectAnswer(q, option);
     setPicked(option);
     setLocked(true);
     if (correct) {
@@ -102,7 +114,14 @@ export default function LevelPlayer({
           const finalScore = score + (correct ? 1 : 0);
           const passed = finalScore >= level.minScore;
           startTransition(async () => {
-            await recordResult(level.id, finalScore, questions.length, level.minScore);
+            await recordResult(
+              track,
+              theme,
+              level.id,
+              finalScore,
+              questions.length,
+              level.minScore,
+            );
           });
           audio.stopMusic();
           audio.playSfx(passed ? "win" : "lose");
@@ -149,6 +168,8 @@ export default function LevelPlayer({
       {stage === "result" && (
         <Result
           level={level}
+          track={track}
+          theme={theme}
           score={score}
           total={questions.length}
           wrong={wrong}
@@ -166,6 +187,23 @@ function pickIntroMascot(
   mood: "happy" | "excited" | "think";
   messages: string[];
 } {
+  if (level.track === "language") {
+    if (level.topic === "final") {
+      return {
+        mood: "think",
+        messages: [t("lang.intro.final.title"), t("lang.intro.final.body")],
+      };
+    }
+    return {
+      mood: "excited",
+      messages: [
+        t(`lang.intro.${level.topic.replace("-", "_")}.title`),
+        t(`lang.intro.${level.topic.replace("-", "_")}.body`),
+      ],
+    };
+  }
+
+  // Math
   if (level.kind === "learn") {
     const table = level.tables[0];
     const first = level.factors?.[0] ?? 1;
@@ -239,30 +277,18 @@ function Intro({
         />
       </div>
 
-      {level.kind === "learn" && (
+      {level.track === "math" && level.kind === "learn" && (
         <TableReference
           table={level.tables[0]}
           factors={level.factors ?? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
         />
       )}
 
-      {level.kind === "mix" && (
-        <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <p className="text-center text-sm font-semibold text-slate-700">
-            {t("level.practice_tables")}
-          </p>
-          <div className="mt-3 flex flex-wrap justify-center gap-2">
-            {level.tables.map((tbl) => (
-              <span
-                key={tbl}
-                className="rounded-full bg-brand-100 px-3 py-1 text-sm font-bold text-brand-700"
-              >
-                × {tbl}
-              </span>
-            ))}
-          </div>
-        </div>
+      {level.track === "math" && level.kind === "mix" && (
+        <MixTablesReference level={level} />
       )}
+
+      {level.track === "language" && <LanguageReference level={level} />}
 
       <button
         onClick={onStart}
@@ -306,6 +332,40 @@ function TableReference({
   );
 }
 
+function MixTablesReference({ level }: { level: MathLevel }) {
+  const { t } = useI18n();
+  return (
+    <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <p className="text-center text-sm font-semibold text-slate-700">
+        {t("level.practice_tables")}
+      </p>
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        {level.tables.map((tbl) => (
+          <span
+            key={tbl}
+            className="rounded-full bg-brand-100 px-3 py-1 text-sm font-bold text-brand-700"
+          >
+            × {tbl}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LanguageReference({ level }: { level: LanguageLevel }) {
+  const { t } = useI18n();
+  const topicKey = level.topic === "final" ? "final" : level.topic.replace("-", "_");
+  const examplesKey = `lang.intro.${topicKey}.examples`;
+  return (
+    <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <p className="text-center text-sm text-slate-700">
+        {t(examplesKey)}
+      </p>
+    </div>
+  );
+}
+
 function Playing({
   level,
   question,
@@ -324,9 +384,9 @@ function Playing({
   total: number;
   score: number;
   streak: number;
-  picked: number | null;
+  picked: OptionValue | null;
   locked: boolean;
-  onPick: (n: number) => void;
+  onPick: (n: OptionValue) => void;
   selectedMascot: MascotVariant;
 }) {
   const { t } = useI18n();
@@ -342,14 +402,14 @@ function Playing({
 
   useEffect(() => {
     if (picked == null) return;
-    const correct = picked === question.answer;
+    const correct = isCorrectAnswer(question, picked);
     setFeedback(correct ? "correct" : "wrong");
     const next = correct
       ? CELEBRATE_MOVES[Math.floor(Math.random() * CELEBRATE_MOVES.length)]
       : "animate-shake";
     setAnim(null);
     requestAnimationFrame(() => setAnim(next));
-  }, [picked, question.answer]);
+  }, [picked, question]);
 
   const mascotMood: "happy" | "celebrate" | "sad" =
     feedback === "correct"
@@ -399,7 +459,23 @@ function Playing({
         />
       </div>
 
-      <div key={index} className="mt-2 flex flex-col items-center animate-pop">
+      <QuestionPrompt question={question} />
+
+      <OptionsGrid
+        question={question}
+        picked={picked}
+        locked={locked}
+        onPick={onPick}
+      />
+    </div>
+  );
+}
+
+function QuestionPrompt({ question }: { question: Question }) {
+  const { t } = useI18n();
+  if (question.type === "math") {
+    return (
+      <div key={`${question.a}-${question.b}`} className="mt-2 flex flex-col items-center animate-pop">
         <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
           {t("level.question_label")}
         </p>
@@ -407,49 +483,85 @@ function Playing({
           {question.a} × {question.b}
         </div>
       </div>
-
-      <div className="mt-auto grid grid-cols-2 gap-2.5 pt-6 sm:gap-3">
-        {question.options.map((opt) => {
-          const isPicked = picked === opt;
-          const isCorrect = opt === question.answer;
-          const n = question.options.length;
-          const sizeCls =
-            n >= 8
-              ? "py-3 text-xl sm:py-4 sm:text-2xl"
-              : n >= 6
-              ? "py-4 text-xl sm:py-5 sm:text-2xl"
-              : "py-5 text-2xl sm:py-6 sm:text-3xl";
-          let cls = `rounded-2xl bg-white ${sizeCls} font-black text-slate-900 shadow-sm ring-2 ring-slate-200 active:scale-[0.98]`;
-          if (locked) {
-            if (isCorrect)
-              cls += " !ring-brand-500 !bg-brand-50 !text-brand-700 animate-pop";
-            else if (isPicked)
-              cls += " !ring-rose-500 !bg-rose-50 !text-rose-700 animate-shake";
-            else cls += " opacity-60";
-          } else {
-            cls += " hover:ring-brand-500";
-          }
-          return (
-            <button
-              key={opt}
-              onClick={() => onPick(opt)}
-              disabled={locked}
-              className={cls}
-            >
-              {opt}
-            </button>
-          );
-        })}
-      </div>
+    );
+  }
+  return (
+    <div className="mt-3 flex flex-col items-center text-center animate-pop">
+      <p className="text-base font-bold text-slate-900 sm:text-lg">
+        {question.prompt}
+      </p>
+      {question.context && (
+        <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-xl font-black text-slate-900 ring-1 ring-amber-200 sm:text-2xl">
+          “{question.context}”
+        </p>
+      )}
     </div>
   );
 }
 
-function findWeakTable(level: Level, wrong: Question[]): number | null {
+function OptionsGrid({
+  question,
+  picked,
+  locked,
+  onPick,
+}: {
+  question: Question;
+  picked: OptionValue | null;
+  locked: boolean;
+  onPick: (n: OptionValue) => void;
+}) {
+  const options: OptionValue[] = question.options;
+  const n = options.length;
+
+  // Math options are numbers — bigger font, 2 columns, 1-line buttons.
+  // Language options are strings — variable length, single column for 2-option
+  // (yes/no) questions, two-column otherwise but smaller font.
+  const isMath = question.type === "math";
+  const layoutCols = isMath ? "grid-cols-2" : n <= 2 ? "grid-cols-1" : "grid-cols-2";
+  const sizeCls = isMath
+    ? n >= 8
+      ? "py-3 text-xl sm:py-4 sm:text-2xl"
+      : n >= 6
+      ? "py-4 text-xl sm:py-5 sm:text-2xl"
+      : "py-5 text-2xl sm:py-6 sm:text-3xl"
+    : "py-4 px-3 text-base sm:py-5 sm:text-lg";
+
+  return (
+    <div className={`mt-auto grid gap-2.5 pt-6 sm:gap-3 ${layoutCols}`}>
+      {options.map((opt) => {
+        const isPicked = picked === opt;
+        const isCorrect = opt === question.answer;
+        let cls = `rounded-2xl bg-white ${sizeCls} font-black text-slate-900 shadow-sm ring-2 ring-slate-200 active:scale-[0.98] break-words text-center`;
+        if (locked) {
+          if (isCorrect)
+            cls += " !ring-brand-500 !bg-brand-50 !text-brand-700 animate-pop";
+          else if (isPicked)
+            cls += " !ring-rose-500 !bg-rose-50 !text-rose-700 animate-shake";
+          else cls += " opacity-60";
+        } else {
+          cls += " hover:ring-brand-500";
+        }
+        return (
+          <button
+            key={String(opt)}
+            onClick={() => onPick(opt)}
+            disabled={locked}
+            className={cls}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function findWeakTable(level: MathLevel, wrong: Question[]): number | null {
   if (wrong.length === 0) return null;
   const counts = new Map<number, number>();
   const allowed = new Set(level.tables);
   for (const q of wrong) {
+    if (q.type !== "math") continue;
     if (allowed.has(q.a)) counts.set(q.a, (counts.get(q.a) ?? 0) + 1);
     else if (allowed.has(q.b)) counts.set(q.b, (counts.get(q.b) ?? 0) + 1);
   }
@@ -467,12 +579,16 @@ function findWeakTable(level: Level, wrong: Question[]): number | null {
 
 function Result({
   level,
+  track,
+  theme,
   score,
   total,
   wrong,
   onRetry,
 }: {
   level: Level;
+  track: Track;
+  theme: string;
   score: number;
   total: number;
   wrong: Question[];
@@ -483,8 +599,11 @@ function Result({
   const passed = score >= level.minScore;
   const stars = computeStars(score, total);
   const next = level.id + 1;
+  const totalForTheme = totalLevels(track, theme);
 
-  const weakTable = findWeakTable(level, wrong);
+  // Math-only "weak table" suggestion.
+  const weakTable =
+    level.track === "math" ? findWeakTable(level, wrong) : null;
   const reviewLevel = weakTable != null ? findLearnLevelFor(weakTable) : undefined;
   const suggestReview = !passed && reviewLevel && reviewLevel.id !== level.id;
 
@@ -555,7 +674,9 @@ function Result({
               })}
             </p>
             <button
-              onClick={() => router.push(`/level/${reviewLevel.id}`)}
+              onClick={() =>
+                router.push(`/level/math/tables/${reviewLevel.id}`)
+              }
               className="mt-3 w-full rounded-xl bg-amber-500 py-3 text-sm font-black text-white shadow-sm active:scale-[0.99]"
             >
               {t("level.weak_hint_button", { table: weakTable })}
@@ -568,12 +689,13 @@ function Result({
         {passed ? (
           <button
             onClick={() => {
-              if (next <= TOTAL_LEVELS) router.push(`/level/${next}`);
+              if (next <= totalForTheme)
+                router.push(`/level/${track}/${theme}/${next}`);
               else router.push("/");
             }}
             className="w-full rounded-2xl bg-brand-500 py-4 text-lg font-black text-white shadow-lg shadow-brand-500/30 active:scale-[0.99]"
           >
-            {next <= TOTAL_LEVELS ? t("level.next") : t("level.back_to_map")}
+            {next <= totalForTheme ? t("level.next") : t("level.back_to_map")}
           </button>
         ) : (
           <button
@@ -606,7 +728,7 @@ function TopBar() {
         ←
       </Link>
       <span className="text-sm font-bold text-slate-500">
-        {t("meta.app_name")} ✖️
+        {t("meta.app_name")}
       </span>
       <div className="h-10 w-10" />
     </div>
