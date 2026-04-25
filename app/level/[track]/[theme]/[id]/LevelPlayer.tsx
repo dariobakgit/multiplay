@@ -39,11 +39,13 @@ function isCorrectAnswer(q: Question, option: OptionValue): boolean {
 export default function LevelPlayer({
   level,
   track,
+  theme,
   selectedMascot,
   userId,
 }: {
   level: Level;
   track: Track;
+  theme: string;
   selectedMascot: MascotVariant;
   userId: string;
 }) {
@@ -114,6 +116,7 @@ export default function LevelPlayer({
           startTransition(async () => {
             await recordResult(
               track,
+              theme,
               level.id,
               finalScore,
               questions.length,
@@ -166,6 +169,7 @@ export default function LevelPlayer({
         <Result
           level={level}
           track={track}
+          theme={theme}
           score={score}
           total={questions.length}
           wrong={wrong}
@@ -576,6 +580,7 @@ function findWeakTable(level: MathLevel, wrong: Question[]): number | null {
 function Result({
   level,
   track,
+  theme,
   score,
   total,
   wrong,
@@ -583,6 +588,7 @@ function Result({
 }: {
   level: Level;
   track: Track;
+  theme: string;
   score: number;
   total: number;
   wrong: Question[];
@@ -593,7 +599,7 @@ function Result({
   const passed = score >= level.minScore;
   const stars = computeStars(score, total);
   const next = level.id + 1;
-  const totalForTrack = totalLevels(track);
+  const totalForTheme = totalLevels(track, theme);
 
   // Math-only "weak table" suggestion.
   const weakTable =
@@ -669,7 +675,7 @@ function Result({
             </p>
             <button
               onClick={() =>
-                router.push(`/level/math/${reviewLevel.id}`)
+                router.push(`/level/math/tables/${reviewLevel.id}`)
               }
               className="mt-3 w-full rounded-xl bg-amber-500 py-3 text-sm font-black text-white shadow-sm active:scale-[0.99]"
             >
@@ -683,13 +689,13 @@ function Result({
         {passed ? (
           <button
             onClick={() => {
-              if (next <= totalForTrack)
-                router.push(`/level/${track}/${next}`);
+              if (next <= totalForTheme)
+                router.push(`/level/${track}/${theme}/${next}`);
               else router.push("/");
             }}
             className="w-full rounded-2xl bg-brand-500 py-4 text-lg font-black text-white shadow-lg shadow-brand-500/30 active:scale-[0.99]"
           >
-            {next <= totalForTrack ? t("level.next") : t("level.back_to_map")}
+            {next <= totalForTheme ? t("level.next") : t("level.back_to_map")}
           </button>
         ) : (
           <button

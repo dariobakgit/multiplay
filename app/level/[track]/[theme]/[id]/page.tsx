@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getLevel } from "@/lib/curriculum";
 import { trackFromParam } from "@/lib/tracks";
+import { isValidTheme } from "@/lib/themes";
 import { createClient } from "@/lib/supabase/server";
 import { getSelectedMascotId, loadProgress } from "@/lib/progress-db";
 import { isUnlocked } from "@/lib/progress-helpers";
@@ -12,14 +13,15 @@ export const dynamic = "force-dynamic";
 export default async function LevelPage({
   params,
 }: {
-  params: Promise<{ track: string; id: string }>;
+  params: Promise<{ track: string; theme: string; id: string }>;
 }) {
-  const { track: trackParam, id } = await params;
+  const { track: trackParam, theme: themeParam, id } = await params;
   const track = trackFromParam(trackParam);
   if (!track) return notFound();
+  if (!isValidTheme(track, themeParam)) return notFound();
 
   const levelId = Number(id);
-  const level = getLevel(track, levelId);
+  const level = getLevel(track, themeParam, levelId);
   if (!level) return notFound();
 
   const supabase = await createClient();
@@ -32,7 +34,7 @@ export default async function LevelPage({
     loadProgress(),
     getSelectedMascotId(),
   ]);
-  if (!isUnlocked(track, levelId, progress)) {
+  if (!isUnlocked(track, themeParam, levelId, progress)) {
     redirect("/");
   }
   const selectedMascot = getMascotForLevel(selectedId) ?? DEFAULT_MASCOT;
@@ -41,6 +43,7 @@ export default async function LevelPage({
     <LevelPlayer
       level={level}
       track={track}
+      theme={themeParam}
       selectedMascot={selectedMascot}
       userId={user.id}
     />

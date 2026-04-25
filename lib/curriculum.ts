@@ -2,6 +2,7 @@ import { MATH_LEVELS } from "./curriculum-math";
 import { LANGUAGE_LEVELS } from "./curriculum-language";
 import type { Level, MathLevel } from "./level-types";
 import type { Track } from "./tracks";
+import type { ThemeSlug } from "./themes";
 
 export {
   Q_COUNT,
@@ -14,28 +15,44 @@ export {
   type LanguageQuestionType,
 } from "./level-types";
 
-const REGISTRY: Record<Track, Level[]> = {
-  math: MATH_LEVELS,
-  language: LANGUAGE_LEVELS,
+const REGISTRY: Record<Track, Record<ThemeSlug, Level[]>> = {
+  math: {
+    tables: MATH_LEVELS,
+  },
+  language: {
+    "nouns-verbs": LANGUAGE_LEVELS,
+  },
 };
 
-export function levelsFor(track: Track): Level[] {
-  return REGISTRY[track];
+export function hasTheme(track: Track, theme: string): boolean {
+  return REGISTRY[track][theme] !== undefined;
 }
 
-export function totalLevels(track: Track): number {
-  return REGISTRY[track].length;
+export function levelsFor(track: Track, theme: ThemeSlug): Level[] {
+  return REGISTRY[track][theme] ?? [];
 }
 
-export function getLevel(track: Track, id: number): Level | undefined {
-  return REGISTRY[track].find((l) => l.id === id);
+export function totalLevels(track: Track, theme: ThemeSlug): number {
+  return REGISTRY[track][theme]?.length ?? 0;
 }
 
-export function levelsByDay(track: Track, day: 1 | 2 | 3): Level[] {
-  return REGISTRY[track].filter((l) => l.day === day);
+export function getLevel(
+  track: Track,
+  theme: ThemeSlug,
+  id: number,
+): Level | undefined {
+  return (REGISTRY[track][theme] ?? []).find((l) => l.id === id);
 }
 
-/** First "learn" level for a given math table (part 1). Math only. */
+export function levelsByDay(
+  track: Track,
+  theme: ThemeSlug,
+  day: 1 | 2 | 3,
+): Level[] {
+  return (REGISTRY[track][theme] ?? []).filter((l) => l.day === day);
+}
+
+/** First "learn" level for a given math table (part 1). Math/tables only. */
 export function findLearnLevelFor(table: number): MathLevel | undefined {
   return MATH_LEVELS.find(
     (l) =>

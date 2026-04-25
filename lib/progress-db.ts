@@ -5,9 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import {
   computeStars,
   emptyProgress,
+  ensureBucket,
   type Progress,
 } from "./progress-helpers";
 import { isTrack, type Track } from "./tracks";
+import { isValidTheme, type ThemeSlug } from "./themes";
 
 export async function loadProgress(): Promise<Progress> {
   const supabase = await createClient();
@@ -18,26 +20,30 @@ export async function loadProgress(): Promise<Progress> {
 
   const { data } = await supabase
     .from("progress")
-    .select("level_id, track, score, total, passed, stars, updated_at")
+    .select("level_id, track, theme, score, total, passed, stars, updated_at")
     .eq("user_id", user.id);
 
   const out = emptyProgress();
   for (const row of data ?? []) {
     if (!isTrack(row.track)) continue;
-    const t = row.track as Track;
-    out.results[t][row.level_id] = {
+    const track = row.track as Track;
+    const theme = (row.theme ?? "") as ThemeSlug;
+    if (!isValidTheme(track, theme)) continue;
+    ensureBucket(out, track, theme);
+    out.results[track][theme][row.level_id] = {
       score: row.score,
       total: row.total,
       passed: row.passed,
       at: new Date(row.updated_at).getTime(),
     };
-    out.stars[t][row.level_id] = row.stars;
+    out.stars[track][theme][row.level_id] = row.stars;
   }
   return out;
 }
 
 export async function recordResult(
   track: Track,
+  theme: ThemeSlug,
   levelId: number,
   score: number,
   total: number,
@@ -61,6 +67,7 @@ export async function recordResult(
     .eq("user_id", user.id)
     .eq("level_id", levelId)
     .eq("track", track)
+    .eq("theme", theme)
     .maybeSingle();
 
   const finalPassed = (existing?.passed ?? false) || passed;
@@ -71,13 +78,14 @@ export async function recordResult(
       user_id: user.id,
       level_id: levelId,
       track,
+      theme,
       score,
       total,
       passed: finalPassed,
       stars: finalStars,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: "user_id,level_id,track" },
+    { onConflict: "user_id,level_id,track,theme" },
   );
   if (error) return { ok: false, error: error.message };
 
@@ -126,7 +134,8 @@ export async function selectMascot(
   if (!user) return { ok: false, error: "No autenticado" };
 
   // Mascot 1 (Multi, the default) is always available.
-  // Others require passing the level with the matching id in any track.
+  // Others require passing the level with the matching id in any
+  // (track, theme) combination.
   if (mascotId !== 1) {
     const { data: passed } = await supabase
       .from("progress")
@@ -149,4 +158,3 @@ export async function selectMascot(
   revalidatePath("/library");
   return { ok: true };
 }
-

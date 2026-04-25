@@ -39,6 +39,7 @@ function buildLevels(): MathLevel[] {
     out.push({
       id: ++id,
       track: "math",
+      theme: "tables",
       day,
       emoji,
       titleKey: "leveltitle.learn_p1",
@@ -56,6 +57,7 @@ function buildLevels(): MathLevel[] {
     out.push({
       id: ++id,
       track: "math",
+      theme: "tables",
       day,
       emoji,
       titleKey: "leveltitle.learn_p2",
@@ -73,6 +75,7 @@ function buildLevels(): MathLevel[] {
     out.push({
       id: ++id,
       track: "math",
+      theme: "tables",
       day,
       emoji: "🔀",
       titleKey: "leveltitle.mix_a",
@@ -90,6 +93,7 @@ function buildLevels(): MathLevel[] {
     out.push({
       id: ++id,
       track: "math",
+      theme: "tables",
       day,
       emoji: "🎯",
       titleKey: "leveltitle.mix_b",
@@ -106,6 +110,7 @@ function buildLevels(): MathLevel[] {
   out.push({
     id: ++id,
     track: "math",
+    theme: "tables",
     day: 3,
     emoji: "👑",
     titleKey: "leveltitle.final",

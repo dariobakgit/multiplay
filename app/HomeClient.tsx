@@ -14,14 +14,16 @@ import { MASCOTS } from "@/lib/mascots";
 import {
   isUnlocked,
   overallPercent,
-  passedCountFor,
+  passedCountForTheme,
+  passedCountForTrack,
   unlockedMascotCount,
   type Progress,
 } from "@/lib/progress-helpers";
 import { resetProgress } from "@/lib/progress-db";
 import { TRACKS, type Track } from "@/lib/tracks";
+import { themesFor, type ThemeSlug, type ThemeInfo } from "@/lib/themes";
 import { logoutAction } from "./(auth)/actions";
-import { Mascot, type Mood, Character } from "@/components/Mascot";
+import { type Mood, Character } from "@/components/Mascot";
 import type { MascotVariant } from "@/lib/mascots";
 import { loadBestStreak } from "@/lib/streak";
 import { FNF_UNLOCK_CORRECT, loadLastExam } from "@/lib/exam-state";
@@ -53,6 +55,7 @@ export default function HomeClient({
   const [bestStreak, setBestStreak] = useState(0);
   const [fnfUnlocked, setFnfUnlocked] = useState(isAdmin);
   const [activeTrack, setActiveTrack] = useState<Track | null>(null);
+  const [activeTheme, setActiveTheme] = useState<ThemeSlug | null>(null);
 
   useEffect(() => {
     audio.init();
@@ -66,6 +69,12 @@ export default function HomeClient({
     setFnfUnlocked(isAdmin || loadLastExam(userId) >= FNF_UNLOCK_CORRECT);
   }, [userId, isAdmin]);
 
+  const showBack = activeTrack !== null;
+  const onBack = () => {
+    if (activeTheme !== null) setActiveTheme(null);
+    else if (activeTrack !== null) setActiveTrack(null);
+  };
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
       <Header
@@ -77,22 +86,37 @@ export default function HomeClient({
         username={username}
         pending={pending}
         startTransition={startTransition}
-        showBack={activeTrack !== null}
-        onBack={() => setActiveTrack(null)}
+        showBack={showBack}
+        onBack={onBack}
       />
 
-      {activeTrack === null ? (
-        <SelectorView
+      {activeTrack === null && (
+        <SubjectSelector
           t={t}
           username={username}
           progress={progress}
           selectedMascot={selectedMascot}
           isAdmin={isAdmin}
-          onPickTrack={setActiveTrack}
+          onPickTrack={(track) => {
+            setActiveTrack(track);
+            setActiveTheme(null);
+          }}
         />
-      ) : (
+      )}
+
+      {activeTrack !== null && activeTheme === null && (
+        <ThemeSelector
+          track={activeTrack}
+          t={t}
+          progress={progress}
+          onPickTheme={(theme) => setActiveTheme(theme)}
+        />
+      )}
+
+      {activeTrack !== null && activeTheme !== null && (
         <LevelsView
           track={activeTrack}
+          theme={activeTheme}
           t={t}
           progress={progress}
           bestStreak={bestStreak}
@@ -195,7 +219,7 @@ function Header({
   );
 }
 
-function SelectorView({
+function SubjectSelector({
   t,
   username,
   progress,
@@ -212,7 +236,7 @@ function SelectorView({
 }) {
   const totalPassedAcrossTracks = unlockedMascotCount(progress);
   const passedTotal = TRACKS.reduce(
-    (sum, t) => sum + passedCountFor(t, progress),
+    (sum, tr) => sum + passedCountForTrack(tr, progress),
     0,
   );
   const mascot = pickHomeMascot(t, username, passedTotal, selectedMascot.name);
@@ -253,8 +277,11 @@ function SelectorView({
         </p>
         <div className="grid grid-cols-2 gap-3">
           {TRACKS.map((track) => {
-            const passed = passedCountFor(track, progress);
-            const total = totalLevels(track);
+            const passed = passedCountForTrack(track, progress);
+            const total = themesFor(track).reduce(
+              (sum, th) => sum + totalLevels(track, th.slug),
+              0,
+            );
             const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
             return (
               <button
@@ -302,27 +329,20 @@ function SelectorView({
   );
 }
 
-function LevelsView({
+function ThemeSelector({
   track,
   t,
   progress,
-  bestStreak,
-  fnfUnlocked,
+  onPickTheme,
 }: {
   track: Track;
   t: TFn;
   progress: Progress;
-  bestStreak: number;
-  fnfUnlocked: boolean;
+  onPickTheme: (slug: ThemeSlug) => void;
 }) {
-  const passedThisTrack = passedCountFor(track, progress);
-  const totalThisTrack = totalLevels(track);
-  const pct = overallPercent(track, progress, totalThisTrack);
-  const examUnlocked = progress.results.math[29]?.passed === true;
-
+  const themes = themesFor(track);
   return (
     <div>
-      {/* Track header */}
       <div className="mb-4 flex items-center gap-3">
         <span className="text-4xl">{TRACK_EMOJI[track]}</span>
         <div>
@@ -330,7 +350,90 @@ function LevelsView({
             {t(`track.${track}`)}
           </h2>
           <p className="text-xs font-semibold text-slate-500">
-            {passedThisTrack} / {totalThisTrack}
+            {t("home.pick_theme")}
+          </p>
+        </div>
+      </div>
+
+      <ul className="space-y-3">
+        {themes.map((th: ThemeInfo) => {
+          const total = totalLevels(track, th.slug);
+          const passed = passedCountForTheme(track, th.slug, progress);
+          const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
+          const isAvailable = total > 0;
+          return (
+            <li key={th.slug}>
+              <button
+                type="button"
+                onClick={() => isAvailable && onPickTheme(th.slug)}
+                disabled={!isAvailable}
+                className={`flex w-full items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-2 ring-slate-200 transition ${
+                  isAvailable
+                    ? "hover:-translate-y-0.5 hover:ring-brand-500 hover:shadow-md active:scale-[0.99]"
+                    : "cursor-not-allowed opacity-60"
+                }`}
+              >
+                <div className="min-w-0 flex-1 text-left">
+                  <p className="text-base font-black text-slate-900">
+                    {t(th.nameKey)}
+                  </p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    {isAvailable
+                      ? `${passed} / ${total}`
+                      : t("home.theme_empty")}
+                  </p>
+                  {isAvailable && (
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+                <span className="text-slate-400">→</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function LevelsView({
+  track,
+  theme,
+  t,
+  progress,
+  bestStreak,
+  fnfUnlocked,
+}: {
+  track: Track;
+  theme: ThemeSlug;
+  t: TFn;
+  progress: Progress;
+  bestStreak: number;
+  fnfUnlocked: boolean;
+}) {
+  const passedThisTheme = passedCountForTheme(track, theme, progress);
+  const totalThisTheme = totalLevels(track, theme);
+  const pct = overallPercent(track, theme, progress, totalThisTheme);
+  const examUnlocked =
+    progress.results.math?.tables?.[29]?.passed === true;
+  const themeInfo = themesFor(track).find((th) => th.slug === theme);
+
+  return (
+    <div>
+      {/* Theme header */}
+      <div className="mb-4 flex items-center gap-3">
+        <span className="text-3xl">{TRACK_EMOJI[track]}</span>
+        <div>
+          <h2 className="text-2xl font-black text-slate-900">
+            {themeInfo ? t(themeInfo.nameKey) : theme}
+          </h2>
+          <p className="text-xs font-semibold text-slate-500">
+            {t(`track.${track}`)} · {passedThisTheme} / {totalThisTheme}
           </p>
         </div>
         {bestStreak >= 2 && (
@@ -362,8 +465,8 @@ function LevelsView({
         </div>
       </div>
 
-      {/* Math-only bonus modes */}
-      {track === "math" && (
+      {/* Math/tables-only bonus modes */}
+      {track === "math" && theme === "tables" && (
         <div className="mt-3 space-y-3">
           {examUnlocked ? (
             <Link
@@ -417,10 +520,11 @@ function LevelsView({
       <div className="mt-6">
         {[1, 2, 3].map((d) => (
           <DaySection
-            key={`${track}-${d}`}
+            key={`${track}-${theme}-${d}`}
             track={track}
+            theme={theme}
             day={d as 1 | 2 | 3}
-            levels={levelsByDay(track, d as 1 | 2 | 3)}
+            levels={levelsByDay(track, theme, d as 1 | 2 | 3)}
             progress={progress}
           />
         ))}
@@ -445,8 +549,6 @@ function pickHomeMascot(
       ],
     };
   }
-  // Use a generic "great to see you" message; the per-track progress is
-  // visible in the subject buttons.
   return {
     mood: "happy",
     messages: [t("mascot.default1"), t("mascot.default2")],
@@ -455,11 +557,13 @@ function pickHomeMascot(
 
 function DaySection({
   track,
+  theme,
   day,
   levels,
   progress,
 }: {
   track: Track;
+  theme: ThemeSlug;
   day: 1 | 2 | 3;
   levels: Level[];
   progress: Progress;
@@ -468,7 +572,7 @@ function DaySection({
   if (levels.length === 0) return null;
   const label = t(`home.${track}.day${day}`);
   const dayPassed = levels.filter(
-    (l) => progress.results[track][l.id]?.passed,
+    (l) => progress.results[track]?.[theme]?.[l.id]?.passed,
   ).length;
 
   return (
@@ -482,8 +586,9 @@ function DaySection({
       <ol className="space-y-3">
         {levels.map((l) => (
           <LevelCard
-            key={`${track}-${l.id}`}
+            key={`${track}-${theme}-${l.id}`}
             track={track}
+            theme={theme}
             level={l}
             progress={progress}
           />
@@ -495,17 +600,19 @@ function DaySection({
 
 function LevelCard({
   track,
+  theme,
   level,
   progress,
 }: {
   track: Track;
+  theme: ThemeSlug;
   level: Level;
   progress: Progress;
 }) {
   const { t } = useI18n();
-  const unlocked = isUnlocked(track, level.id, progress);
-  const r = progress.results[track][level.id];
-  const stars = progress.stars[track][level.id] ?? 0;
+  const unlocked = isUnlocked(track, theme, level.id, progress);
+  const r = progress.results[track]?.[theme]?.[level.id];
+  const stars = progress.stars[track]?.[theme]?.[level.id] ?? 0;
   const passed = r?.passed;
 
   const ring = passed
@@ -571,7 +678,7 @@ function LevelCard({
   return (
     <li>
       {unlocked ? (
-        <Link href={`/level/${track}/${level.id}`} className="block">
+        <Link href={`/level/${track}/${theme}/${level.id}`} className="block">
           {inner}
         </Link>
       ) : (

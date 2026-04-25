@@ -168,6 +168,7 @@ const SPECS: Spec[] = [
 export const LANGUAGE_LEVELS: LanguageLevel[] = SPECS.map((s, i) => ({
   id: i + 1,
   track: "language",
+  theme: "nouns-verbs",
   day: s.day,
   emoji: s.emoji,
   titleKey: s.titleKey,

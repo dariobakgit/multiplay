@@ -8,6 +8,10 @@ export type LevelKind = "learn" | "mix";
 interface BaseLevel {
   id: number;
   track: Track;
+  /** Theme slug within the track (e.g. "tables", "nouns-verbs").
+   * Multiple themes per track let us add new content without rewriting
+   * the curriculum index. */
+  theme: string;
   day: 1 | 2 | 3;
   /** i18n key + vars for the level title. */
   titleKey: string;
