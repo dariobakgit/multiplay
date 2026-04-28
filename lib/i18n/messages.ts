@@ -191,6 +191,25 @@ const es: Dict = {
   "err.profile_create_failed": "No se pudo crear el perfil",
   "err.account_created_login": "Cuenta creada, probá entrar desde el login",
 
+  // settings
+  "settings.title": "Configuración",
+  "settings.subtitle": "Tu cuenta y preferencias",
+  "settings.section_account": "Cuenta",
+  "settings.section_app": "App",
+  "settings.display_name": "Nombre del niño",
+  "settings.display_name_placeholder": "Ej: Lucas",
+  "settings.display_name_hint": "Es lo que aparece en el saludo. Si está vacío usamos tu usuario.",
+  "settings.birth_date": "Fecha de nacimiento",
+  "settings.birth_date_hint": "Lo usamos para sugerir contenidos adecuados a la edad.",
+  "settings.username_label": "Usuario",
+  "settings.username_hint": "Para cambiarlo pedile a un admin.",
+  "settings.language": "Idioma",
+  "settings.save": "Guardar cambios",
+  "settings.saving": "Guardando...",
+  "settings.saved": "✓ Guardado",
+  "settings.save_error": "❌ No se pudo guardar",
+  "home.settings_aria": "Configuración",
+
   // install banner
   "install.cta": "📱 Instalá Multiplay en tu dispositivo",
   "install.button": "Instalar",
@@ -392,6 +411,25 @@ const en: Dict = {
   "err.user_exists": "That username already exists",
   "err.profile_create_failed": "Could not create profile",
   "err.account_created_login": "Account created, try logging in",
+
+  // settings
+  "settings.title": "Settings",
+  "settings.subtitle": "Your account and preferences",
+  "settings.section_account": "Account",
+  "settings.section_app": "App",
+  "settings.display_name": "Child's name",
+  "settings.display_name_placeholder": "e.g. Lucas",
+  "settings.display_name_hint": "Shown in the greeting. If empty we use your username.",
+  "settings.birth_date": "Date of birth",
+  "settings.birth_date_hint": "Used to suggest age-appropriate content.",
+  "settings.username_label": "Username",
+  "settings.username_hint": "Ask an admin to change it.",
+  "settings.language": "Language",
+  "settings.save": "Save changes",
+  "settings.saving": "Saving...",
+  "settings.saved": "✓ Saved",
+  "settings.save_error": "❌ Could not save",
+  "home.settings_aria": "Settings",
 
   // install banner
   "install.cta": "📱 Install Multiplay on your device",

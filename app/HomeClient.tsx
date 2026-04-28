@@ -26,18 +26,20 @@ import { useI18n } from "@/lib/i18n/context";
 
 export default function HomeClient({
   username,
+  greetingName,
   progress,
   selectedMascot,
   userId,
   isAdmin,
 }: {
   username: string;
+  greetingName: string;
   progress: Progress;
   selectedMascot: MascotVariant;
   userId: string;
   isAdmin: boolean;
 }) {
-  const { t, locale, toggleLocale } = useI18n();
+  const { t } = useI18n();
   const [pending, startTransition] = useTransition();
   const [muted, setMuted] = useState(false);
   const [bestStreak, setBestStreak] = useState(0);
@@ -46,7 +48,7 @@ export default function HomeClient({
   const examUnlocked = progress.results[29]?.passed === true;
   const pct = overallPercent(progress);
 
-  const mascot = pickHomeMascot(t, username, passed, selectedMascot.name);
+  const mascot = pickHomeMascot(t, greetingName, passed, selectedMascot.name);
   const unlockedCount = passed;
 
   useEffect(() => {
@@ -67,20 +69,19 @@ export default function HomeClient({
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-slate-900">
-              {t("home.greeting", { name: username })}
+              {t("home.greeting", { name: greetingName })}
             </h1>
             <p className="mt-1 text-sm text-slate-600">{t("home.subtitle")}</p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleLocale}
-                className="flex h-8 min-w-8 items-center justify-center rounded-full bg-white px-2 text-[10px] font-black uppercase tracking-wide text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
-                aria-label={t("home.lang_toggle")}
+              <Link
+                href="/settings"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+                aria-label={t("home.settings_aria")}
               >
-                {locale === "es" ? "ES" : "EN"}
-              </button>
+                ⚙️
+              </Link>
               <button
                 type="button"
                 onClick={() => {

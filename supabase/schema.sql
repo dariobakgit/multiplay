@@ -17,6 +17,16 @@ alter table public.profiles
   add column if not exists selected_mascot_id int not null default 1
   check (selected_mascot_id between 1 and 100);
 
+-- User-editable profile fields (Settings screen).
+alter table public.profiles
+  add column if not exists display_name text
+  check (display_name is null or char_length(display_name) between 1 and 50);
+alter table public.profiles
+  add column if not exists birth_date date;
+alter table public.profiles
+  add column if not exists locale text
+  check (locale is null or locale in ('es', 'en'));
+
 alter table public.profiles enable row level security;
 
 drop policy if exists "profiles_select_own" on public.profiles;

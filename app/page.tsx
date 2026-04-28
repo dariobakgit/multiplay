@@ -16,7 +16,7 @@ export default async function Home() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, selected_mascot_id")
+    .select("username, display_name, selected_mascot_id")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -25,6 +25,7 @@ export default async function Home() {
     profile?.username ??
     (user.user_metadata?.username as string | undefined) ??
     "jugador";
+  const greetingName = profile?.display_name?.trim() || username;
 
   const selectedId = profile?.selected_mascot_id ?? 1;
   const selectedMascot = getMascotForLevel(selectedId) ?? DEFAULT_MASCOT;
@@ -32,6 +33,7 @@ export default async function Home() {
   return (
     <HomeClient
       username={username}
+      greetingName={greetingName}
       progress={progress}
       selectedMascot={selectedMascot}
       userId={user.id}
