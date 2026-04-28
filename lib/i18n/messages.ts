@@ -190,6 +190,20 @@ const es: Dict = {
   "err.user_exists": "Ese usuario ya existe",
   "err.profile_create_failed": "No se pudo crear el perfil",
   "err.account_created_login": "Cuenta creada, probá entrar desde el login",
+
+  // install banner
+  "install.cta": "📱 Instalá Multiplay en tu dispositivo",
+  "install.button": "Instalar",
+  "install.dismiss": "Cerrar",
+  "install.ios_title": "Cómo instalar en iPhone / iPad",
+  "install.ios_step1": "Tocá el botón Compartir ⬆️ abajo en Safari",
+  "install.ios_step2": "Bajá y elegí \"Agregar a pantalla de inicio\"",
+  "install.ios_step3": "Tocá \"Agregar\" arriba a la derecha",
+  "install.android_title": "Cómo instalar en Android",
+  "install.android_step1": "Tocá el menú ⋮ del navegador",
+  "install.android_step2": "Elegí \"Agregar a pantalla principal\" o \"Instalar app\"",
+  "install.android_step3": "Confirmá tocando \"Agregar\"",
+  "install.ok": "Listo",
 };
 
 const en: Dict = {
@@ -378,6 +392,20 @@ const en: Dict = {
   "err.user_exists": "That username already exists",
   "err.profile_create_failed": "Could not create profile",
   "err.account_created_login": "Account created, try logging in",
+
+  // install banner
+  "install.cta": "📱 Install Multiplay on your device",
+  "install.button": "Install",
+  "install.dismiss": "Close",
+  "install.ios_title": "How to install on iPhone / iPad",
+  "install.ios_step1": "Tap the Share button ⬆️ at the bottom of Safari",
+  "install.ios_step2": "Scroll and pick \"Add to Home Screen\"",
+  "install.ios_step3": "Tap \"Add\" at the top right",
+  "install.android_title": "How to install on Android",
+  "install.android_step1": "Tap the ⋮ menu in your browser",
+  "install.android_step2": "Pick \"Add to Home screen\" or \"Install app\"",
+  "install.android_step3": "Confirm by tapping \"Add\"",
+  "install.ok": "Got it",
 };
 
 export const MESSAGES: Record<Locale, Dict> = { es, en };
