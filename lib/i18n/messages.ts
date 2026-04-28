@@ -6,7 +6,7 @@ type Dict = Record<string, string>;
 
 const es: Dict = {
   // meta
-  "meta.app_name": "Tablas",
+  "meta.app_name": "Multiplay",
   "topbar.back": "Volver",
 
   // home
@@ -166,7 +166,7 @@ const es: Dict = {
   "fnf.lost_retry": "Reintentar ⚔️",
 
   // login/signup
-  "auth.app_title": "Tablas",
+  "auth.app_title": "Multiplay",
   "auth.login_sub": "Entrá con tu usuario",
   "auth.signup_sub": "Elegí un nombre y una contraseña",
   "auth.signup_title": "Creá tu usuario",
@@ -208,7 +208,7 @@ const es: Dict = {
 
 const en: Dict = {
   // meta
-  "meta.app_name": "Tables",
+  "meta.app_name": "Multiplay",
   "topbar.back": "Back",
 
   // home
@@ -368,7 +368,7 @@ const en: Dict = {
   "fnf.lost_retry": "Retry ⚔️",
 
   // login/signup
-  "auth.app_title": "Tables",
+  "auth.app_title": "Multiplay",
   "auth.login_sub": "Log in with your username",
   "auth.signup_sub": "Pick a name and a password",
   "auth.signup_title": "Create your account",

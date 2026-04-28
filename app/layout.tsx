@@ -4,13 +4,13 @@ import { I18nProvider } from "@/lib/i18n/context";
 import { InstallBanner } from "@/components/InstallBanner";
 
 export const metadata: Metadata = {
-  title: "Tablas · Aprende Multiplicando",
+  title: "Multiplay · Aprende Multiplicando",
   description: "Aprende las tablas de multiplicar en 3 días",
   manifest: "/manifest.webmanifest",
-  applicationName: "Tablas",
+  applicationName: "Multiplay",
   appleWebApp: {
     capable: true,
-    title: "Tablas",
+    title: "Multiplay",
     statusBarStyle: "default",
   },
   icons: {
