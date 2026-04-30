@@ -62,6 +62,16 @@ async function upsertStreak(
   await supabase.from("streaks").upsert(merged, { onConflict: "user_id,topic_id" });
 }
 
+/** Setea current/best directos (upsert atómico). Útil al final de un
+ *  nivel cuando el Renderer reporta el estado final. */
+export async function setStreakState(
+  topicId: string,
+  current: number,
+  best: number,
+): Promise<void> {
+  await upsertStreak(topicId, { current, best });
+}
+
 /** Suma 1 al streak actual del topic; sube `best` si lo supera. */
 export async function recordCorrect(topicId: string): Promise<StreakState> {
   const before = await loadStreak(topicId);

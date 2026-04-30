@@ -3,56 +3,73 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { audio } from "@/lib/audio";
-import {
-  formatLevelSubtitle,
-  formatLevelTitle,
-  levelsByDay,
-  TOTAL_LEVELS,
-  type Level,
-} from "@/lib/curriculum";
 import { MASCOTS } from "@/lib/mascots";
-import {
-  isUnlocked,
-  overallPercent,
-  type Progress,
-} from "@/lib/progress-helpers";
 import { resetProgress } from "@/lib/progress-db";
 import { logoutAction } from "./(auth)/actions";
 import { Mascot, type Mood } from "@/components/Mascot";
 import type { MascotVariant } from "@/lib/mascots";
-import { loadBestStreak } from "@/lib/streak";
-import { FNF_UNLOCK_CORRECT, loadLastExam } from "@/lib/exam-state";
-import { migrateLegacyStreak } from "@/lib/streaks-db";
 import { useI18n } from "@/lib/i18n/context";
+
+export interface TopicCardData {
+  id: string;
+  slug: string;
+  emoji: string | null;
+  nameEs: string;
+  nameEn: string;
+  subjectNameEs: string;
+  subjectNameEn: string;
+  subjectEmoji: string | null;
+  levelsTotal: number;
+  levelsPassed: number;
+  streakBest: number;
+}
 
 export default function HomeClient({
   username,
   greetingName,
-  progress,
   selectedMascot,
   userId,
   isAdmin,
-  tablesTopicId,
+  topics,
+  ownedMascotsCount,
 }: {
   username: string;
   greetingName: string;
-  progress: Progress;
   selectedMascot: MascotVariant;
   userId: string;
   isAdmin: boolean;
-  tablesTopicId: string | null;
+  topics: TopicCardData[];
+  ownedMascotsCount: number;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [pending, startTransition] = useTransition();
   const [muted, setMuted] = useState(false);
-  const [bestStreak, setBestStreak] = useState(0);
-  const [fnfUnlocked, setFnfUnlocked] = useState(isAdmin);
-  const passed = Object.values(progress.results).filter((r) => r.passed).length;
-  const examUnlocked = progress.results[29]?.passed === true;
-  const pct = overallPercent(progress);
 
-  const mascot = pickHomeMascot(t, greetingName, passed, selectedMascot.name);
-  const unlockedCount = passed;
+  const totalPassed = topics.reduce((s, t) => s + t.levelsPassed, 0);
+  const totalLevels = topics.reduce((s, t) => s + t.levelsTotal, 0);
+  const bestStreakAcrossTopics = Math.max(
+    0,
+    ...topics.map((t) => t.streakBest),
+  );
+
+  // Group topics by subject
+  const bySubject = new Map<
+    string,
+    { name: string; emoji: string | null; topics: TopicCardData[] }
+  >();
+  for (const tt of topics) {
+    const key = locale === "en" ? tt.subjectNameEn : tt.subjectNameEs;
+    if (!bySubject.has(key)) {
+      bySubject.set(key, {
+        name: key,
+        emoji: tt.subjectEmoji,
+        topics: [],
+      });
+    }
+    bySubject.get(key)!.topics.push(tt);
+  }
+
+  const mascot = pickHomeMascot(t, greetingName, totalPassed, selectedMascot.name);
 
   useEffect(() => {
     audio.init();
@@ -60,38 +77,6 @@ export default function HomeClient({
     audio.playMusic("menu");
     return () => audio.stopAll();
   }, []);
-
-  useEffect(() => {
-    setBestStreak(loadBestStreak(userId));
-    setFnfUnlocked(isAdmin || loadLastExam(userId) >= FNF_UNLOCK_CORRECT);
-  }, [userId, isAdmin]);
-
-  // One-time migration: copia la racha y last_exam_correct de
-  // localStorage (legacy) a la tabla `streaks` en DB scopeada por topic.
-  // Idempotente — la server action solo sube valores, nunca los baja.
-  // localStorage no se borra: la app vieja todavía lo lee. Cuando el
-  // nuevo flow lea de DB (paso 6+) localStorage queda dead code.
-  useEffect(() => {
-    if (!tablesTopicId) return;
-    if (typeof window === "undefined") return;
-    const flagKey = `multiply-streak-migrated-${userId}-${tablesTopicId}`;
-    if (window.localStorage.getItem(flagKey)) return;
-
-    const cur = Number(window.localStorage.getItem(`multiply-streak-${userId}`)) || 0;
-    const best = Number(window.localStorage.getItem(`multiply-streak-best-${userId}`)) || 0;
-    const lastExam = Number(window.localStorage.getItem(`multiply-last-exam-${userId}`)) || 0;
-
-    if (cur === 0 && best === 0 && lastExam === 0) {
-      window.localStorage.setItem(flagKey, "1");
-      return;
-    }
-
-    void migrateLegacyStreak(tablesTopicId, cur, best, lastExam || null)
-      .then(() => window.localStorage.setItem(flagKey, "1"))
-      .catch(() => {
-        // si falla, no marcamos el flag — reintenta en la próxima carga
-      });
-  }, [userId, tablesTopicId]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
@@ -149,22 +134,30 @@ export default function HomeClient({
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-semibold text-slate-700">
-              {t("home.progress_total")}
-            </span>
-            <span className="font-bold text-brand-600">
-              {passed} / {TOTAL_LEVELS}
-            </span>
+        {totalLevels > 0 && (
+          <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-semibold text-slate-700">
+                {t("home.progress_total")}
+              </span>
+              <span className="font-bold text-brand-600">
+                {totalPassed} / {totalLevels}
+              </span>
+            </div>
+            <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all"
+                style={{
+                  width: `${
+                    totalLevels === 0
+                      ? 0
+                      : (totalPassed / totalLevels) * 100
+                  }%`,
+                }}
+              />
+            </div>
           </div>
-          <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
+        )}
 
         <div className="mt-5 flex items-end gap-3">
           <div className="min-w-0 flex-1">
@@ -175,11 +168,11 @@ export default function HomeClient({
               variant={selectedMascot}
             />
           </div>
-          {bestStreak >= 2 && (
+          {bestStreakAcrossTopics >= 2 && (
             <div className="shrink-0 rounded-2xl bg-amber-50 px-3 py-2 text-center shadow-sm ring-1 ring-amber-200">
               <div className="text-2xl leading-none">🔥</div>
               <div className="mt-1 text-xl font-black leading-none text-amber-700">
-                {bestStreak}
+                {bestStreakAcrossTopics}
               </div>
               <div className="mt-1 whitespace-pre-line text-[9px] font-bold uppercase leading-tight text-amber-700">
                 {t("home.best_streak")}
@@ -187,52 +180,6 @@ export default function HomeClient({
             </div>
           )}
         </div>
-
-        {examUnlocked ? (
-          <Link
-            href="/exam"
-            className="mt-4 flex items-center justify-between rounded-2xl bg-indigo-50 px-4 py-3 ring-1 ring-indigo-200 transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-indigo-700">
-                {t("home.exam_title")}
-              </p>
-              <p className="text-sm font-black text-indigo-900">
-                {t("home.exam_subtitle")}
-              </p>
-            </div>
-            <span className="text-indigo-700">→</span>
-          </Link>
-        ) : (
-          <div className="mt-4 flex cursor-not-allowed items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 opacity-70 ring-1 ring-slate-200">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                {t("home.exam_locked_title")}
-              </p>
-              <p className="text-sm font-black text-slate-500">
-                {t("home.exam_locked_subtitle")}
-              </p>
-            </div>
-            <span className="text-slate-400">🔒</span>
-          </div>
-        )}
-
-        {fnfUnlocked && (
-          <Link
-            href="/fnf"
-            className="mt-3 flex items-center justify-between rounded-2xl bg-gradient-to-r from-rose-600 to-slate-900 px-4 py-3 ring-1 ring-rose-900 transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-rose-200">
-                {t("home.fnf_title")}
-              </p>
-              <p className="text-sm font-black text-white">
-                {t("home.fnf_subtitle")}
-              </p>
-            </div>
-            <span className="text-rose-200">→</span>
-          </Link>
-        )}
 
         <Link
           href="/library"
@@ -244,7 +191,7 @@ export default function HomeClient({
             </p>
             <p className="text-sm font-black text-amber-900">
               {t("home.library_subtitle", {
-                n: unlockedCount,
+                n: ownedMascotsCount,
                 total: MASCOTS.length,
               })}
             </p>
@@ -270,14 +217,76 @@ export default function HomeClient({
         )}
       </header>
 
-      {[1, 2, 3].map((d) => (
-        <DaySection
-          key={d}
-          day={d as 1 | 2 | 3}
-          levels={levelsByDay(d as 1 | 2 | 3)}
-          progress={progress}
-        />
+      {Array.from(bySubject.values()).map((subject) => (
+        <section key={subject.name} className="mb-8">
+          <h2 className="mb-3 text-lg font-bold text-slate-800">
+            {subject.emoji ? `${subject.emoji} ` : ""}
+            {subject.name}
+          </h2>
+          <ul className="space-y-3">
+            {subject.topics.map((tt) => {
+              const pct =
+                tt.levelsTotal > 0
+                  ? (tt.levelsPassed / tt.levelsTotal) * 100
+                  : 0;
+              const done = tt.levelsTotal > 0 && tt.levelsPassed >= tt.levelsTotal;
+              return (
+                <li key={tt.id}>
+                  <Link
+                    href={`/topic/${tt.slug}`}
+                    className={`block rounded-2xl p-4 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:shadow-md ${
+                      done
+                        ? "bg-brand-50 ring-brand-300"
+                        : "bg-white ring-slate-200"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl ${
+                          done ? "bg-brand-500 text-white" : "bg-slate-100"
+                        }`}
+                      >
+                        {tt.emoji ?? "•"}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-base font-black text-slate-900">
+                          {locale === "en" ? tt.nameEn : tt.nameEs}
+                        </p>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                          <span className="font-bold">
+                            {tt.levelsPassed} / {tt.levelsTotal}
+                          </span>
+                          {tt.streakBest >= 2 && (
+                            <span className="font-bold text-amber-600">
+                              · 🔥 {tt.streakBest}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-slate-400">→</span>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       ))}
+
+      {topics.length === 0 && (
+        <div className="rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-slate-200">
+          <p className="text-sm text-slate-600">
+            {/* edge case: no topics for this user's age */}
+            No topics available.
+          </p>
+        </div>
+      )}
     </main>
   );
 }
@@ -300,7 +309,7 @@ function pickHomeMascot(
       ],
     };
   }
-  if (passedCount >= TOTAL_LEVELS) {
+  if (passedCount >= 30) {
     return {
       mood: "celebrate",
       messages: [
@@ -309,13 +318,7 @@ function pickHomeMascot(
       ],
     };
   }
-  if (passedCount >= TOTAL_LEVELS - 3) {
-    return {
-      mood: "celebrate",
-      messages: [t("mascot.almost_done1"), t("mascot.almost_done2")],
-    };
-  }
-  if (passedCount >= Math.floor(TOTAL_LEVELS / 2)) {
+  if (passedCount >= 15) {
     return {
       mood: "happy",
       messages: [
@@ -328,112 +331,4 @@ function pickHomeMascot(
     mood: "happy",
     messages: [t("mascot.default1"), t("mascot.default2")],
   };
-}
-
-function DaySection({
-  day,
-  levels,
-  progress,
-}: {
-  day: 1 | 2 | 3;
-  levels: Level[];
-  progress: Progress;
-}) {
-  const { t } = useI18n();
-  const label = t(`home.day${day}`);
-  const dayPassed = levels.filter((l) => progress.results[l.id]?.passed).length;
-
-  return (
-    <section className="mb-8">
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-lg font-bold text-slate-800">{label}</h2>
-        <span className="text-xs font-semibold text-slate-500">
-          {dayPassed} / {levels.length}
-        </span>
-      </div>
-      <ol className="space-y-3">
-        {levels.map((l) => (
-          <LevelCard key={l.id} level={l} progress={progress} />
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-function LevelCard({ level, progress }: { level: Level; progress: Progress }) {
-  const { t } = useI18n();
-  const unlocked = isUnlocked(level.id, progress);
-  const r = progress.results[level.id];
-  const stars = progress.stars[level.id] ?? 0;
-  const passed = r?.passed;
-
-  const ring = passed
-    ? "ring-brand-500 bg-brand-50"
-    : unlocked
-    ? "ring-slate-200 bg-white"
-    : "ring-slate-200 bg-slate-50 opacity-60";
-
-  const inner = (
-    <div
-      className={`flex items-center gap-3 rounded-2xl p-4 shadow-sm ring-1 transition ${ring} ${
-        unlocked ? "hover:-translate-y-0.5 hover:shadow-md" : ""
-      }`}
-    >
-      <div
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${
-          passed ? "bg-brand-500 text-white" : "bg-slate-100"
-        }`}
-      >
-        {unlocked ? level.emoji : "🔒"}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            {t("library.level_n", { n: level.id })}
-          </span>
-          {level.kind === "mix" && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-700">
-              {t("level.mix_tag")}
-            </span>
-          )}
-        </div>
-        <p className="truncate text-base font-bold text-slate-900">
-          {formatLevelTitle(level, t)}
-        </p>
-        <p className="truncate text-xs text-slate-600">
-          {formatLevelSubtitle(level, t)}
-        </p>
-      </div>
-      <div className="shrink-0 text-right">
-        <div className="text-lg leading-none">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className={i < stars ? "text-amber-400" : "text-slate-200"}
-            >
-              ★
-            </span>
-          ))}
-        </div>
-        <div className="mt-1 text-[10px] font-semibold text-slate-500">
-          {t("level.pass_min", {
-            min: level.minScore,
-            total: level.questions,
-          })}
-        </div>
-      </div>
-    </div>
-  );
-
-  return (
-    <li>
-      {unlocked ? (
-        <Link href={`/level/${level.id}`} className="block">
-          {inner}
-        </Link>
-      ) : (
-        <div className="cursor-not-allowed">{inner}</div>
-      )}
-    </li>
-  );
 }

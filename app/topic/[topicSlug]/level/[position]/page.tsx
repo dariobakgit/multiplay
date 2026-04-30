@@ -15,6 +15,7 @@ import {
   loadTopicBySlug,
   loadTopicLevel,
 } from "@/lib/topics-db";
+import { loadStreak } from "@/lib/streaks-db";
 import LevelHost from "./LevelHost";
 
 export const dynamic = "force-dynamic";
@@ -58,11 +59,15 @@ export default async function TopicLevelPage({
   const selectedMascot: MascotVariant =
     getMascotForLevel(selectedId) ?? DEFAULT_MASCOT;
 
-  const nextPosition = await loadNextLevelPosition(topic.id, position);
+  const [nextPosition, streakState] = await Promise.all([
+    loadNextLevelPosition(topic.id, position),
+    loadStreak(topic.id),
+  ]);
 
   return (
     <LevelHost
       topicSlug={topicSlug}
+      topicId={topic.id}
       level={{
         id: level.id,
         topicId: level.topicId,
@@ -81,6 +86,10 @@ export default async function TopicLevelPage({
       selectedMascot={selectedMascot}
       userId={user.id}
       nextPosition={nextPosition}
+      initialStreak={{
+        current: streakState.current,
+        best: streakState.best,
+      }}
     />
   );
 }

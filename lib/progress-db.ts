@@ -92,7 +92,6 @@ export async function recordResultByTopicLevel(
   passed: boolean,
   starsEarned: number | null,
   unlocksMascotId: number | null,
-  legacyLevelId: number | null = null,
 ): Promise<
   | {
       ok: true;
@@ -110,10 +109,9 @@ export async function recordResultByTopicLevel(
 
   const stars = starsEarned ?? computeStars(score, total);
 
-  // Buscar fila existente por topic_level_id (no por level_id legacy).
   const { data: existing } = await supabase
     .from("progress")
-    .select("id, passed, stars, level_id")
+    .select("id, passed, stars")
     .eq("user_id", user.id)
     .eq("topic_level_id", topicLevelId)
     .maybeSingle();
@@ -124,26 +122,21 @@ export async function recordResultByTopicLevel(
   const firstPass = !wasPassed && passed;
 
   if (existing) {
-    const update: Record<string, unknown> = {
-      score,
-      total,
-      passed: finalPassed,
-      stars: finalStars,
-      updated_at: new Date().toISOString(),
-    };
-    if (existing.level_id == null && legacyLevelId != null) {
-      update.level_id = legacyLevelId;
-    }
     const { error } = await supabase
       .from("progress")
-      .update(update)
+      .update({
+        score,
+        total,
+        passed: finalPassed,
+        stars: finalStars,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", existing.id);
     if (error) return { ok: false, error: error.message };
   } else {
     const { error } = await supabase.from("progress").insert({
       user_id: user.id,
       topic_level_id: topicLevelId,
-      level_id: legacyLevelId,
       score,
       total,
       passed: finalPassed,

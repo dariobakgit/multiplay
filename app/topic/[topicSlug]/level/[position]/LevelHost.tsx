@@ -7,6 +7,7 @@ import { audio } from "@/lib/audio";
 import { useI18n } from "@/lib/i18n/context";
 import { getMascotForLevel, type MascotVariant } from "@/lib/mascots";
 import { recordResultByTopicLevel } from "@/lib/progress-db";
+import { setStreakState, recordExamResult } from "@/lib/streaks-db";
 import { getMechanic } from "@/lib/mechanics/registry";
 import type {
   MechanicAfterResult,
@@ -31,18 +32,22 @@ interface LevelData {
 
 export default function LevelHost({
   topicSlug,
+  topicId,
   level,
   mechanic,
   selectedMascot,
   userId,
   nextPosition,
+  initialStreak,
 }: {
   topicSlug: string;
+  topicId: string;
   level: LevelData;
   mechanic: string;
   selectedMascot: MascotVariant;
   userId: string;
   nextPosition: number | null;
+  initialStreak: { current: number; best: number };
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -110,14 +115,7 @@ export default function LevelHost({
   async function handleResult(
     result: MechanicResult,
   ): Promise<MechanicAfterResult> {
-    // Legacy compat: el home viejo lee progress.level_id; si estamos
-    // en multiplication-tables y la position cabe en el rango legacy,
-    // poblamos también level_id para mantener el home en sync hasta
-    // que el step 9 lo migre.
-    const legacyLevelId =
-      topicSlug === "multiplication-tables" && level.position <= 100
-        ? level.position
-        : null;
+    void topicSlug; // reserved for analytics later
     const res = await recordResultByTopicLevel(
       level.id,
       result.score,
@@ -125,8 +123,22 @@ export default function LevelHost({
       result.passed,
       result.starsEarned ?? null,
       level.unlocksMascotId,
-      legacyLevelId,
     );
+
+    // Persist streak (per-topic) si la mecánica lo trackea.
+    if (result.finalStreak) {
+      void setStreakState(
+        topicId,
+        result.finalStreak.current,
+        result.finalStreak.best,
+      );
+    }
+
+    // Si fue un examen, guardar last_exam_correct para gating de
+    // batalla.
+    if (mechanic === "exam") {
+      void recordExamResult(topicId, result.score);
+    }
 
     audio.stopMusic();
     audio.playSfx(result.passed ? "win" : "lose");
@@ -167,6 +179,7 @@ export default function LevelHost({
         level={mechanicLevel}
         selectedMascot={selectedMascot}
         userId={userId}
+        initialStreak={initialStreak}
         onResult={handleResult}
         onNext={handleNext}
         onExit={handleExit}

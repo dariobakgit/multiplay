@@ -1,10 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {
-  getSelectedMascotId,
-  loadProgress,
-  selectMascot,
-} from "@/lib/progress-db";
+import { getSelectedMascotId, selectMascot } from "@/lib/progress-db";
 import LibraryPageClient from "./LibraryPageClient";
 
 export const dynamic = "force-dynamic";
@@ -21,22 +17,20 @@ export default async function LibraryPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [progress, selectedId] = await Promise.all([
-    loadProgress(),
+  const [{ data: ownedRows }, selectedId] = await Promise.all([
+    supabase
+      .from("user_mascots")
+      .select("mascot_id")
+      .eq("user_id", user.id),
     getSelectedMascotId(),
   ]);
 
-  const unlocked = Array.from(
-    new Set([
-      1, // Multi (default) always available
-      ...Object.entries(progress.results)
-        .filter(([, r]) => r.passed)
-        .map(([id]) => Number(id)),
-    ]),
-  );
-  const unlockedCount = Object.values(progress.results).filter(
-    (r) => r.passed,
-  ).length;
+  const ownedIds = new Set<number>([1]); // Multi (default) always available
+  for (const row of ownedRows ?? []) ownedIds.add(row.mascot_id);
+
+  const unlocked = Array.from(ownedIds).sort((a, b) => a - b);
+  // Count of "real" unlocks (from DB rows). Multi default isn't earned.
+  const unlockedCount = ownedRows?.length ?? 0;
 
   return (
     <LibraryPageClient

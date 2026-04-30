@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { Character, Mascot } from "@/components/Mascot";
 import type { MascotVariant } from "@/lib/mascots";
 import { computeStars } from "@/lib/progress-helpers";
-import { loadCurrentStreak, saveStreak } from "@/lib/streak";
 import { useI18n } from "@/lib/i18n/context";
 import type { MechanicAfterResult, MechanicRendererProps } from "../types";
 import { buildMCQuestions, type MCQuestion } from "./build-question";
@@ -37,7 +36,7 @@ interface ResultData {
 export function MultipleChoiceRenderer({
   level,
   selectedMascot,
-  userId,
+  initialStreak,
   onResult,
   onNext,
   onExit,
@@ -48,7 +47,10 @@ export function MultipleChoiceRenderer({
   );
   const [idx, setIdx] = useState(0);
   const [score, setScore] = useState(0);
-  const [streak, setStreak] = useState(0);
+  const [streak, setStreak] = useState(() => initialStreak?.current ?? 0);
+  const [bestStreak, setBestStreak] = useState(
+    () => initialStreak?.best ?? 0,
+  );
   const [picked, setPicked] = useState<number | null>(null);
   const [locked, setLocked] = useState(false);
   const [resultData, setResultData] = useState<ResultData | null>(null);
@@ -64,15 +66,6 @@ export function MultipleChoiceRenderer({
     setStage("intro");
   }, [level.id, level.config]);
 
-  // Streak persiste cross-niveles vía localStorage (será migrada a DB
-  // per-topic en el paso 5 del plan).
-  useEffect(() => {
-    setStreak(loadCurrentStreak(userId));
-  }, [userId]);
-  useEffect(() => {
-    saveStreak(userId, streak);
-  }, [streak, userId]);
-
   function onPick(option: number) {
     if (locked || stage !== "playing") return;
     const q = questions[idx];
@@ -81,7 +74,11 @@ export function MultipleChoiceRenderer({
     setLocked(true);
     if (correct) {
       setScore((s) => s + 1);
-      setStreak((s) => s + 1);
+      setStreak((s) => {
+        const next = s + 1;
+        setBestStreak((b) => Math.max(b, next));
+        return next;
+      });
     } else {
       setStreak(0);
     }
@@ -92,8 +89,16 @@ export function MultipleChoiceRenderer({
           const total = questions.length;
           const passed = finalScore >= level.config.minScore;
           const stars = computeStars(finalScore, total);
+          const finalCurrent = correct ? streak + 1 : 0;
+          const finalBest = Math.max(bestStreak, finalCurrent);
           // Persistir vía page wrapper.
-          onResult({ passed, score: finalScore, total, starsEarned: stars })
+          onResult({
+            passed,
+            score: finalScore,
+            total,
+            starsEarned: stars,
+            finalStreak: { current: finalCurrent, best: finalBest },
+          })
             .then((after: MechanicAfterResult) => {
               setResultData({
                 passed,

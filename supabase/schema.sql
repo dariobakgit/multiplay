@@ -290,11 +290,35 @@ end$$;
 
 alter table public.progress alter column level_id drop not null;
 
-create unique index if not exists progress_user_level_unique
-  on public.progress (user_id, level_id) where level_id is not null;
+-- Cleanup post-migración: tras la fase 2.6 todo el progreso vive en
+-- topic_level_id. Eliminamos el legacy level_id y promovemos
+-- topic_level_id a NOT NULL con un unique constraint completo.
 
-create unique index if not exists progress_user_topic_level_unique
-  on public.progress (user_id, topic_level_id) where topic_level_id is not null;
+drop index if exists progress_user_level_unique;
+drop index if exists progress_user_topic_level_unique;
+
+alter table public.progress drop column if exists level_id;
+
+update public.progress set topic_level_id = (
+  select id from public.topic_levels limit 1
+) where topic_level_id is null;
+
+alter table public.progress alter column topic_level_id set not null;
+
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.table_constraints
+    where constraint_type = 'UNIQUE'
+      and table_name = 'progress'
+      and table_schema = 'public'
+      and constraint_name = 'progress_user_topic_level_unique'
+  ) then
+    alter table public.progress
+      add constraint progress_user_topic_level_unique
+      unique (user_id, topic_level_id);
+  end if;
+end$$;
 
 create index if not exists idx_progress_topic_level
   on public.progress(user_id, topic_level_id);

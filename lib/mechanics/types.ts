@@ -28,6 +28,9 @@ export interface MechanicResult {
   total: number;
   /** Optional 0-3 estrellas, calculado desde score/total si no se pasa. */
   starsEarned?: number;
+  /** Estado final del streak por-respuesta para mecánicas que lo trackeen.
+   *  El page wrapper persiste a la tabla `streaks`. */
+  finalStreak?: { current: number; best: number };
 }
 
 export interface MechanicAfterResult {
@@ -43,6 +46,8 @@ export interface MechanicRendererProps<TConfig = unknown> {
   level: MechanicLevel<TConfig>;
   selectedMascot: MascotVariant;
   userId: string;
+  /** Estado inicial del streak (cargado server-side desde `streaks` DB). */
+  initialStreak?: { current: number; best: number };
   /** Llamado cuando el nivel termina (passed o failed). El page wrapper
    *  persiste, paga monedas, desbloquea mascotas, calcula hasNext, y
    *  retorna info para que el Renderer pinte la pantalla de resultado. */
