@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Character, Mascot } from "@/components/Mascot";
 import type { MascotVariant } from "@/lib/mascots";
 import { computeStars } from "@/lib/progress-helpers";
 import { loadCurrentStreak, saveStreak } from "@/lib/streak";
 import { useI18n } from "@/lib/i18n/context";
-import type { MechanicRendererProps } from "../types";
+import type { MechanicAfterResult, MechanicRendererProps } from "../types";
 import { buildMCQuestions, type MCQuestion } from "./build-question";
 import type { MultipleChoiceConfig } from "./config";
 
@@ -16,7 +17,16 @@ const CELEBRATE_MOVES = [
   "animate-mv-shimmy",
 ] as const;
 
-type Stage = "intro" | "playing";
+type Stage = "intro" | "playing" | "result";
+
+interface ResultData {
+  passed: boolean;
+  score: number;
+  total: number;
+  stars: number;
+  unlockedMascot: MascotVariant | null;
+  hasNext: boolean;
+}
 
 /**
  * Renderer de la mecánica multiple_choice. Controla la introducción y
@@ -29,8 +39,9 @@ export function MultipleChoiceRenderer({
   selectedMascot,
   userId,
   onResult,
+  onNext,
+  onExit,
 }: MechanicRendererProps<MultipleChoiceConfig>) {
-  const { t } = useI18n();
   const [stage, setStage] = useState<Stage>("intro");
   const [questions, setQuestions] = useState<MCQuestion[]>(() =>
     buildMCQuestions(level.config),
@@ -40,6 +51,7 @@ export function MultipleChoiceRenderer({
   const [streak, setStreak] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [locked, setLocked] = useState(false);
+  const [resultData, setResultData] = useState<ResultData | null>(null);
 
   // Re-build cuando cambia el level (re-mount o navegación).
   useEffect(() => {
@@ -48,6 +60,7 @@ export function MultipleChoiceRenderer({
     setScore(0);
     setPicked(null);
     setLocked(false);
+    setResultData(null);
     setStage("intro");
   }, [level.id, level.config]);
 
@@ -78,12 +91,31 @@ export function MultipleChoiceRenderer({
           const finalScore = score + (correct ? 1 : 0);
           const total = questions.length;
           const passed = finalScore >= level.config.minScore;
-          void onResult({
-            passed,
-            score: finalScore,
-            total,
-            starsEarned: computeStars(finalScore, total),
-          });
+          const stars = computeStars(finalScore, total);
+          // Persistir vía page wrapper.
+          onResult({ passed, score: finalScore, total, starsEarned: stars })
+            .then((after: MechanicAfterResult) => {
+              setResultData({
+                passed,
+                score: finalScore,
+                total,
+                stars,
+                unlockedMascot: after.unlockedMascot ?? null,
+                hasNext: after.hasNext,
+              });
+              setStage("result");
+            })
+            .catch(() => {
+              setResultData({
+                passed,
+                score: finalScore,
+                total,
+                stars,
+                unlockedMascot: null,
+                hasNext: false,
+              });
+              setStage("result");
+            });
         } else {
           setIdx((i) => i + 1);
           setPicked(null);
@@ -94,12 +126,33 @@ export function MultipleChoiceRenderer({
     );
   }
 
+  function retry() {
+    setQuestions(buildMCQuestions(level.config));
+    setIdx(0);
+    setScore(0);
+    setPicked(null);
+    setLocked(false);
+    setResultData(null);
+    setStage("playing");
+  }
+
   if (stage === "intro") {
     return (
       <Intro
         level={level}
         selectedMascot={selectedMascot}
         onStart={() => setStage("playing")}
+      />
+    );
+  }
+
+  if (stage === "result" && resultData) {
+    return (
+      <Result
+        data={resultData}
+        onRetry={retry}
+        onNext={onNext}
+        onExit={onExit}
       />
     );
   }
@@ -117,6 +170,123 @@ export function MultipleChoiceRenderer({
       onPick={onPick}
       selectedMascot={selectedMascot}
     />
+  );
+}
+
+function Result({
+  data,
+  onRetry,
+  onNext,
+  onExit,
+}: {
+  data: ResultData;
+  onRetry: () => void;
+  onNext?: () => void;
+  onExit?: () => void;
+}) {
+  const { t } = useI18n();
+  const resultMood = data.passed
+    ? data.stars === 3
+      ? "celebrate"
+      : "happy"
+    : "sad";
+  const resultMessage = data.passed
+    ? data.stars === 3
+      ? t("level.result_3_stars")
+      : data.stars === 2
+      ? t("level.result_2_stars")
+      : t("level.result_1_star")
+    : t("level.result_failed", { n: Math.max(0, data.total - data.score) });
+
+  return (
+    <div className="flex flex-1 flex-col">
+      <div className="mt-6 flex flex-1 flex-col items-center justify-center text-center">
+        <Character
+          mood={resultMood}
+          size="lg"
+          variant={data.unlockedMascot ?? undefined}
+        />
+        <h1 className="mt-4 text-3xl font-black text-slate-900">
+          {data.passed ? t("level.passed_title") : t("level.not_passed_title")}
+        </h1>
+        <p className="mt-1 text-slate-600">{resultMessage}</p>
+        {data.passed && data.unlockedMascot && (
+          <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200">
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+              {t("level.new_mascot")}
+            </p>
+            <p className="mt-0.5 text-lg font-black text-amber-900">
+              {t("level.meet_mascot", { name: data.unlockedMascot.name })}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-6 text-5xl">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className={
+                i < data.stars ? "text-amber-400 animate-pop" : "text-slate-200"
+              }
+              style={{ animationDelay: `${i * 120}ms` }}
+            >
+              ★
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-6 rounded-2xl bg-white px-6 py-4 shadow-sm ring-1 ring-slate-200">
+          <div className="text-xs font-semibold uppercase text-slate-500">
+            {t("level.score")}
+          </div>
+          <div className="text-3xl font-black text-slate-900">
+            {data.score} <span className="text-slate-400">/ {data.total}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-3 pb-4">
+        {data.passed ? (
+          data.hasNext && onNext ? (
+            <button
+              onClick={onNext}
+              className="w-full rounded-2xl bg-brand-500 py-4 text-lg font-black text-white shadow-lg shadow-brand-500/30 active:scale-[0.99]"
+            >
+              {t("level.next")}
+            </button>
+          ) : (
+            <button
+              onClick={onExit ?? (() => {})}
+              className="w-full rounded-2xl bg-brand-500 py-4 text-lg font-black text-white shadow-lg shadow-brand-500/30 active:scale-[0.99]"
+            >
+              {t("level.back_to_map")}
+            </button>
+          )
+        ) : (
+          <button
+            onClick={onRetry}
+            className="w-full rounded-2xl bg-brand-500 py-4 text-lg font-black text-white shadow-lg shadow-brand-500/30 active:scale-[0.99]"
+          >
+            {t("level.retry")}
+          </button>
+        )}
+        {onExit ? (
+          <button
+            onClick={onExit}
+            className="block w-full rounded-2xl bg-white py-3 text-center text-sm font-bold text-slate-700 ring-1 ring-slate-200"
+          >
+            {t("level.back_to_map")}
+          </button>
+        ) : (
+          <Link
+            href="/"
+            className="block w-full rounded-2xl bg-white py-3 text-center text-sm font-bold text-slate-700 ring-1 ring-slate-200"
+          >
+            {t("level.back_to_map")}
+          </Link>
+        )}
+      </div>
+    </div>
   );
 }
 

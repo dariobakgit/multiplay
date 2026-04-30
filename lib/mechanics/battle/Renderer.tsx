@@ -1,26 +1,58 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Character, MOVES } from "@/components/Mascot";
 import { EVIL_MASCOT, type MascotVariant } from "@/lib/mascots";
 import { useI18n } from "@/lib/i18n/context";
-import type { MechanicRendererProps } from "../types";
+import type { MechanicAfterResult, MechanicRendererProps } from "../types";
 import { buildNextBattleQuestion, type BattleQuestion } from "./build-question";
 import type { BattleConfig } from "./config";
 
-type Stage = "intro" | "fight";
+type Stage = "intro" | "fight" | "result";
 type Outcome = "pending" | "correct" | "wrong" | "timeout";
+
+interface ResultData {
+  won: boolean;
+  unlockedMascot: MascotVariant | null;
+  hasNext: boolean;
+}
 
 export function BattleRenderer({
   level,
   selectedMascot,
   onResult,
+  onNext,
+  onExit,
 }: MechanicRendererProps<BattleConfig>) {
   const [stage, setStage] = useState<Stage>("intro");
+  const [resultData, setResultData] = useState<ResultData | null>(null);
 
   useEffect(() => {
     setStage("intro");
+    setResultData(null);
   }, [level.id]);
+
+  function handleFinish(won: boolean) {
+    onResult({
+      passed: won,
+      score: won ? 1 : 0,
+      total: 1,
+      starsEarned: won ? 3 : 0,
+    })
+      .then((after: MechanicAfterResult) => {
+        setResultData({
+          won,
+          unlockedMascot: after.unlockedMascot ?? null,
+          hasNext: after.hasNext,
+        });
+        setStage("result");
+      })
+      .catch(() => {
+        setResultData({ won, unlockedMascot: null, hasNext: false });
+        setStage("result");
+      });
+  }
 
   if (stage === "intro") {
     return (
@@ -32,19 +64,102 @@ export function BattleRenderer({
     );
   }
 
+  if (stage === "result" && resultData) {
+    return (
+      <Result
+        data={resultData}
+        mascot={selectedMascot}
+        onRetry={() => setStage("fight")}
+        onNext={onNext}
+        onExit={onExit}
+      />
+    );
+  }
+
+  return <Fight config={level.config} mascot={selectedMascot} onFinish={handleFinish} />;
+}
+
+function Result({
+  data,
+  mascot,
+  onRetry,
+  onNext,
+  onExit,
+}: {
+  data: ResultData;
+  mascot: MascotVariant;
+  onRetry: () => void;
+  onNext?: () => void;
+  onExit?: () => void;
+}) {
+  const { t } = useI18n();
   return (
-    <Fight
-      config={level.config}
-      mascot={selectedMascot}
-      onFinish={(won) =>
-        void onResult({
-          passed: won,
-          score: won ? 1 : 0,
-          total: 1,
-          starsEarned: won ? 3 : 0,
-        })
-      }
-    />
+    <div className="flex flex-1 flex-col">
+      <div className="mt-8 flex flex-col items-center text-center">
+        <div className="flex items-center gap-6">
+          <Character
+            variant={mascot}
+            size="lg"
+            mood={data.won ? "celebrate" : "sad"}
+          />
+          <Character
+            variant={EVIL_MASCOT}
+            size="lg"
+            evil
+            mood={data.won ? "sad" : "celebrate"}
+          />
+        </div>
+        <h1 className="mt-6 text-4xl font-black text-slate-900">
+          {data.won ? t("fnf.won_title") : t("fnf.lost_title")}
+        </h1>
+        <p className="mt-1 text-slate-600">
+          {data.won ? t("fnf.won_sub") : t("fnf.lost_sub")}
+        </p>
+        {data.won && data.unlockedMascot && (
+          <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 ring-1 ring-amber-200">
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+              {t("level.new_mascot")}
+            </p>
+            <p className="mt-0.5 text-lg font-black text-amber-900">
+              {t("level.meet_mascot", { name: data.unlockedMascot.name })}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-auto space-y-3 pb-4">
+        {data.won && data.hasNext && onNext ? (
+          <button
+            onClick={onNext}
+            className="w-full rounded-2xl bg-rose-600 py-4 text-lg font-black text-white shadow-lg shadow-rose-600/30 active:scale-[0.99]"
+          >
+            {t("level.next")}
+          </button>
+        ) : (
+          <button
+            onClick={onRetry}
+            className="w-full rounded-2xl bg-rose-600 py-4 text-lg font-black text-white shadow-lg shadow-rose-600/30 active:scale-[0.99]"
+          >
+            {data.won ? t("fnf.won_retry") : t("fnf.lost_retry")}
+          </button>
+        )}
+        {onExit ? (
+          <button
+            onClick={onExit}
+            className="block w-full rounded-2xl bg-white py-3 text-center text-sm font-bold text-slate-700 ring-1 ring-slate-200"
+          >
+            {t("level.back_to_map")}
+          </button>
+        ) : (
+          <Link
+            href="/"
+            className="block w-full rounded-2xl bg-white py-3 text-center text-sm font-bold text-slate-700 ring-1 ring-slate-200"
+          >
+            {t("level.back_to_map")}
+          </Link>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -30,14 +30,26 @@ export interface MechanicResult {
   starsEarned?: number;
 }
 
+export interface MechanicAfterResult {
+  /** Mascota desbloqueada por completar el nivel (si correspondía y era
+   *  primera vez). El Renderer la muestra en su pantalla de resultado. */
+  unlockedMascot?: MascotVariant | null;
+  /** Si hay nivel siguiente disponible para que el botón "Siguiente"
+   *  tenga sentido. Si false, mostrar "Volver al mapa". */
+  hasNext: boolean;
+}
+
 export interface MechanicRendererProps<TConfig = unknown> {
   level: MechanicLevel<TConfig>;
   selectedMascot: MascotVariant;
   userId: string;
-  /** Llamado cuando el nivel termina (passed o failed). El page wrapper se
-   *  encarga de persistir el resultado, pagar monedas, etc. */
-  onResult: (result: MechanicResult) => Promise<void> | void;
-  /** Llamado cuando el usuario quiere salir / volver al mapa. */
+  /** Llamado cuando el nivel termina (passed o failed). El page wrapper
+   *  persiste, paga monedas, desbloquea mascotas, calcula hasNext, y
+   *  retorna info para que el Renderer pinte la pantalla de resultado. */
+  onResult: (result: MechanicResult) => Promise<MechanicAfterResult>;
+  /** Navegar al próximo nivel del topic. */
+  onNext?: () => void;
+  /** Volver al mapa (home/topic page). */
   onExit?: () => void;
 }
 
