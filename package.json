@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "db:setup": "tsx scripts/setup-db.ts",
+    "seed:curriculum": "tsx scripts/seed-curriculum.ts",
     "icons": "tsx scripts/gen-icons.ts"
   },
   "dependencies": {
