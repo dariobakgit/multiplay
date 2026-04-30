@@ -9,6 +9,7 @@
     "lint": "next lint",
     "db:setup": "tsx scripts/setup-db.ts",
     "seed:curriculum": "tsx scripts/seed-curriculum.ts",
+    "migrate:progress": "tsx scripts/migrate-progress.ts",
     "icons": "tsx scripts/gen-icons.ts"
   },
   "dependencies": {
