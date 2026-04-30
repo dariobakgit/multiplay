@@ -86,7 +86,6 @@ export default function HomeClient({
             <h1 className="text-3xl font-black tracking-tight text-slate-900">
               {t("home.greeting", { name: greetingName })}
             </h1>
-            <p className="mt-1 text-sm text-slate-600">{t("home.subtitle")}</p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2">
@@ -97,6 +96,15 @@ export default function HomeClient({
               >
                 ⚙️
               </Link>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+                  aria-label={t("home.admin_title")}
+                >
+                  🛠
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -199,22 +207,6 @@ export default function HomeClient({
           <span className="text-amber-700">→</span>
         </Link>
 
-        {isAdmin && (
-          <Link
-            href="/admin"
-            className="mt-3 flex items-center justify-between rounded-2xl bg-slate-900 px-4 py-3 ring-1 ring-slate-800 transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                {t("home.admin_title")}
-              </p>
-              <p className="text-sm font-black text-white">
-                {t("home.admin_subtitle")}
-              </p>
-            </div>
-            <span className="text-slate-400">→</span>
-          </Link>
-        )}
       </header>
 
       {Array.from(bySubject.values()).map((subject) => (

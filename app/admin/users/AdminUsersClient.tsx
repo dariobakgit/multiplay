@@ -58,7 +58,7 @@ export default function AdminClient({ users }: { users: AdminUser[] }) {
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
       <div className="flex items-center gap-3">
         <Link
-          href="/"
+          href="/admin"
           className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-500 text-lg font-black text-white shadow-md shadow-brand-500/30 ring-1 ring-brand-600 active:scale-95"
           aria-label={t("topbar.back")}
         >
@@ -66,7 +66,7 @@ export default function AdminClient({ users }: { users: AdminUser[] }) {
         </Link>
         <div>
           <h1 className="text-2xl font-black text-slate-900">
-            {t("admin.title")}
+            {t("admin.title")} · {t("home.admin_subtitle")}
           </h1>
           <p className="text-sm text-slate-600">{countText}</p>
         </div>

@@ -1,12 +1,11 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminUsername } from "@/lib/admin";
-import AdminClient, { type AdminUser } from "./AdminClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage() {
+export default async function AdminHubPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -20,31 +19,55 @@ export default async function AdminPage() {
     .maybeSingle();
   if (!isAdminUsername(me?.username)) redirect("/");
 
-  const admin = createAdminClient();
-  const [{ data: authList }, { data: profiles }, { data: progressRows }] =
-    await Promise.all([
-      admin.auth.admin.listUsers({ perPage: 1000 }),
-      admin.from("profiles").select("id, username"),
-      admin.from("progress").select("user_id, passed").eq("passed", true),
-    ]);
+  return (
+    <main className="mx-auto max-w-2xl px-4 py-6 pb-24">
+      <div className="flex items-center gap-3">
+        <Link
+          href="/"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-500 text-lg font-black text-white shadow-md shadow-brand-500/30 ring-1 ring-brand-600 active:scale-95"
+          aria-label="Volver"
+        >
+          ←
+        </Link>
+        <div>
+          <h1 className="text-2xl font-black text-slate-900">
+            🛠 Administración
+          </h1>
+          <p className="text-sm text-slate-600">
+            Elegí qué administrar
+          </p>
+        </div>
+      </div>
 
-  const passedCount = new Map<string, number>();
-  for (const row of progressRows ?? []) {
-    passedCount.set(row.user_id, (passedCount.get(row.user_id) ?? 0) + 1);
-  }
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/admin/users"
+          className="flex items-center gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-2xl">
+            👤
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-black text-slate-900">Usuarios</p>
+            <p className="text-xs text-slate-600">Cambiar clave o reiniciar progreso</p>
+          </div>
+          <span className="text-slate-400">→</span>
+        </Link>
 
-  const profileByUser = new Map<string, string>();
-  for (const p of profiles ?? []) profileByUser.set(p.id, p.username);
-
-  const users: AdminUser[] = (authList?.users ?? [])
-    .map((u) => ({
-      id: u.id,
-      username: profileByUser.get(u.id) ?? u.email ?? "(sin nombre)",
-      levelsPassed: passedCount.get(u.id) ?? 0,
-      createdAt: u.created_at ?? null,
-      isSelf: u.id === user.id,
-    }))
-    .sort((a, b) => a.username.localeCompare(b.username));
-
-  return <AdminClient users={users} />;
+        <Link
+          href="/admin/content"
+          className="flex items-center gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-2xl">
+            📚
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-black text-slate-900">Contenido</p>
+            <p className="text-xs text-slate-600">Materias, temas y niveles</p>
+          </div>
+          <span className="text-slate-400">→</span>
+        </Link>
+      </div>
+    </main>
+  );
 }
