@@ -22,6 +22,7 @@ import { Mascot, type Mood } from "@/components/Mascot";
 import type { MascotVariant } from "@/lib/mascots";
 import { loadBestStreak } from "@/lib/streak";
 import { FNF_UNLOCK_CORRECT, loadLastExam } from "@/lib/exam-state";
+import { migrateLegacyStreak } from "@/lib/streaks-db";
 import { useI18n } from "@/lib/i18n/context";
 
 export default function HomeClient({
@@ -31,6 +32,7 @@ export default function HomeClient({
   selectedMascot,
   userId,
   isAdmin,
+  tablesTopicId,
 }: {
   username: string;
   greetingName: string;
@@ -38,6 +40,7 @@ export default function HomeClient({
   selectedMascot: MascotVariant;
   userId: string;
   isAdmin: boolean;
+  tablesTopicId: string | null;
 }) {
   const { t } = useI18n();
   const [pending, startTransition] = useTransition();
@@ -62,6 +65,33 @@ export default function HomeClient({
     setBestStreak(loadBestStreak(userId));
     setFnfUnlocked(isAdmin || loadLastExam(userId) >= FNF_UNLOCK_CORRECT);
   }, [userId, isAdmin]);
+
+  // One-time migration: copia la racha y last_exam_correct de
+  // localStorage (legacy) a la tabla `streaks` en DB scopeada por topic.
+  // Idempotente — la server action solo sube valores, nunca los baja.
+  // localStorage no se borra: la app vieja todavía lo lee. Cuando el
+  // nuevo flow lea de DB (paso 6+) localStorage queda dead code.
+  useEffect(() => {
+    if (!tablesTopicId) return;
+    if (typeof window === "undefined") return;
+    const flagKey = `multiply-streak-migrated-${userId}-${tablesTopicId}`;
+    if (window.localStorage.getItem(flagKey)) return;
+
+    const cur = Number(window.localStorage.getItem(`multiply-streak-${userId}`)) || 0;
+    const best = Number(window.localStorage.getItem(`multiply-streak-best-${userId}`)) || 0;
+    const lastExam = Number(window.localStorage.getItem(`multiply-last-exam-${userId}`)) || 0;
+
+    if (cur === 0 && best === 0 && lastExam === 0) {
+      window.localStorage.setItem(flagKey, "1");
+      return;
+    }
+
+    void migrateLegacyStreak(tablesTopicId, cur, best, lastExam || null)
+      .then(() => window.localStorage.setItem(flagKey, "1"))
+      .catch(() => {
+        // si falla, no marcamos el flag — reintenta en la próxima carga
+      });
+  }, [userId, tablesTopicId]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6 pb-24">

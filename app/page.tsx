@@ -20,6 +20,14 @@ export default async function Home() {
     .eq("id", user.id)
     .maybeSingle();
 
+  // Topic id de "tablas" — usado para migrar la racha legacy desde
+  // localStorage en la primera carga post-deploy del usuario.
+  const { data: tablesTopic } = await supabase
+    .from("topics")
+    .select("id")
+    .eq("slug", "multiplication-tables")
+    .maybeSingle();
+
   const progress = await loadProgress();
   const username =
     profile?.username ??
@@ -38,6 +46,7 @@ export default async function Home() {
       selectedMascot={selectedMascot}
       userId={user.id}
       isAdmin={isAdminUsername(profile?.username)}
+      tablesTopicId={tablesTopic?.id ?? null}
     />
   );
 }
